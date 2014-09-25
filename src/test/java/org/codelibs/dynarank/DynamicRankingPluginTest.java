@@ -49,7 +49,8 @@ public class DynamicRankingPluginTest {
                         .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, 100)
                         .put(DynamicRanker.INDEX_DYNARANK_SCRIPT,
                                 "searchHits.sort {s1, s2 -> s2.field('counter').value() - s1.field('counter').value()} as org.elasticsearch.search.internal.InternalSearchHit[]")
-                        .build());
+                        .put(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS + "foo",
+                                "bar").build());
 
         for (int i = 1; i <= 1000; i++) {
             final IndexResponse indexResponse1 = runner.insert(index, type,

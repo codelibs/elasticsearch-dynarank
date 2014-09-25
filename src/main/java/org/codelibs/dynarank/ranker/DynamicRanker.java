@@ -45,11 +45,13 @@ public class DynamicRanker extends AbstractComponent {
 
     public static final String DEFAULT_SCRIPT_LANG = "groovy";
 
-    public static final String INDEX_DYNARANK_SCRIPT = "index.dynarank.script";
+    public static final String INDEX_DYNARANK_SCRIPT = "index.dynarank.script_sort.script";
 
-    public static final String INDEX_DYNARANK_SCRIPT_LANG = "index.dynarank.script_lang";
+    public static final String INDEX_DYNARANK_SCRIPT_LANG = "index.dynarank.script_sort.lang";
 
-    public static final String INDEX_DYNARANK_SCRIPT_TYPE = "index.dynarank.script_type";
+    public static final String INDEX_DYNARANK_SCRIPT_TYPE = "index.dynarank.script_sort.type";
+
+    public static final String INDEX_DYNARANK_SCRIPT_PARAMS = "index.dynarank.script_sort.params.";
 
     public static final String INDEX_DYNARANK_REORDER_SIZE = "index.dynarank.reorder_size";
 
@@ -77,9 +79,7 @@ public class DynamicRanker extends AbstractComponent {
         defaultReorderSize = settings.getAsInt(INDICES_DYNARANK_REORDER_SIZE,
                 200);
 
-        dynamicSettings.addDynamicSettings(INDEX_DYNARANK_REORDER_SIZE,
-                INDEX_DYNARANK_SCRIPT, INDEX_DYNARANK_SCRIPT_LANG,
-                INDEX_DYNARANK_SCRIPT_TYPE);
+        dynamicSettings.addDynamicSettings("index.dynarank.*");
 
         INSTANCE = this;
     }
@@ -126,7 +126,8 @@ public class DynamicRanker extends AbstractComponent {
             scriptInfos[i] = new ScriptInfo(script, indexSettings.get(
                     INDEX_DYNARANK_SCRIPT_LANG, DEFAULT_SCRIPT_LANG),
                     indexSettings.get(INDEX_DYNARANK_SCRIPT_TYPE,
-                            DEFAULT_SCRIPT_TYPE));
+                            DEFAULT_SCRIPT_TYPE),
+                    indexSettings.getByPrefix(INDEX_DYNARANK_SCRIPT_PARAMS));
 
             final Integer size = indexSettings.getAsInt(
                     INDEX_DYNARANK_REORDER_SIZE, -1);
@@ -280,7 +281,9 @@ public class DynamicRanker extends AbstractComponent {
         final Map<String, Object> vars = new HashMap<String, Object>();
         InternalSearchHit[] hits = searchHits;
         for (final ScriptInfo scriptInfo : scriptInfos) {
+            vars.clear();
             vars.put("searchHits", hits);
+            vars.putAll(scriptInfo.getSettings().getAsMap());
             final CompiledScript compiledScript = scriptService.compile(
                     scriptInfo.getLang(), scriptInfo.getScript(),
                     scriptInfo.getScriptType());
@@ -306,10 +309,13 @@ public class DynamicRanker extends AbstractComponent {
 
         private ScriptType scriptType;
 
+        private Settings settings;
+
         ScriptInfo(final String script, final String lang,
-                final String scriptType) {
+                final String scriptType, final Settings settings) {
             this.script = script;
             this.lang = lang;
+            this.settings = settings;
             if ("INDEXED".equalsIgnoreCase(scriptType)) {
                 this.scriptType = ScriptType.INDEXED;
             } else if ("FILE".equalsIgnoreCase(scriptType)) {
@@ -329,6 +335,10 @@ public class DynamicRanker extends AbstractComponent {
 
         public ScriptType getScriptType() {
             return scriptType;
+        }
+
+        public Settings getSettings() {
+            return settings;
         }
     }
 }
