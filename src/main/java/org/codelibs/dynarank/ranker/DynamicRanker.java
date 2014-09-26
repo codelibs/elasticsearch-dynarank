@@ -72,7 +72,7 @@ public class DynamicRanker extends AbstractComponent {
         this.clusterService = clusterService;
         this.scriptService = scriptService;
 
-        logger.info("Initializing DynamicRankingService");
+        logger.info("Initializing DynamicRanker");
 
         defaultReorderSize = settings.getAsInt(INDICES_DYNARANK_REORDER_SIZE,
                 200);
@@ -154,6 +154,11 @@ public class DynamicRanker extends AbstractComponent {
             sourceAsMap.put("size", maxSize);
             sourceAsMap.put("from", 0);
 
+            if (logger.isDebugEnabled()) {
+                logger.debug("Rewrite query: from:{}->{} size:{}->{}", from, 0,
+                        size, maxSize);
+            }
+
             final XContentBuilder builder = XContentFactory
                     .contentBuilder(Requests.CONTENT_TYPE);
             builder.map(sourceAsMap);
@@ -225,6 +230,13 @@ public class DynamicRanker extends AbstractComponent {
                         newResponse.getHeaders().putAll(headers);
                     }
                     listener.onResponse(newResponse);
+
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Rewriting overhead time: {} - {} = {}ms",
+                                response.getTookInMillis(), tookInMillis,
+                                tookInMillis - response.getTookInMillis());
+                    }
+
                 } catch (final Exception e) {
                     throw new DynamicRankingException(
                             "Failed to parse a search response.", e);
