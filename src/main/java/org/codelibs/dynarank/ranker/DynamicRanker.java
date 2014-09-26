@@ -18,7 +18,6 @@ import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
-import org.elasticsearch.cluster.settings.DynamicSettings;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
@@ -67,7 +66,6 @@ public class DynamicRanker extends AbstractComponent {
 
     @Inject
     public DynamicRanker(final Settings settings,
-            final DynamicSettings dynamicSettings,
             final ClusterService clusterService,
             final ScriptService scriptService) {
         super(settings);
@@ -78,8 +76,6 @@ public class DynamicRanker extends AbstractComponent {
 
         defaultReorderSize = settings.getAsInt(INDICES_DYNARANK_REORDER_SIZE,
                 200);
-
-        dynamicSettings.addDynamicSettings("index.dynarank.*");
 
         INSTANCE = this;
     }

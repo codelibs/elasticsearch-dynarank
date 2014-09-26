@@ -9,6 +9,7 @@ import javassist.CtMethod;
 import org.codelibs.dynarank.module.DynamicRankingModule;
 import org.elasticsearch.common.collect.Lists;
 import org.elasticsearch.common.inject.Module;
+import org.elasticsearch.index.settings.IndexDynamicSettingsModule;
 import org.elasticsearch.plugins.AbstractPlugin;
 
 public class DynamicRankingPlugin extends AbstractPlugin {
@@ -52,6 +53,10 @@ public class DynamicRankingPlugin extends AbstractPlugin {
                 .newArrayList();
         modules.add(DynamicRankingModule.class);
         return modules;
+    }
+
+    public void onModule(final IndexDynamicSettingsModule module) {
+        module.addDynamicSettings("index.dynarank.*");
     }
 
 }
