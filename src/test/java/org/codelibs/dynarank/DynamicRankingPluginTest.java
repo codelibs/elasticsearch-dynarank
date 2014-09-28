@@ -1,5 +1,6 @@
 package org.codelibs.dynarank;
 
+import static org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner.newConfigs;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -24,7 +25,7 @@ public class DynamicRankingPluginTest {
     @Before
     public void setUp() throws Exception {
         runner = new ElasticsearchClusterRunner();
-        runner.build(new String[] { "-numOfNode", "1", "-indexStoreType", "ram" });
+        runner.build(newConfigs().numOfNode(1).ramIndexStore());
         runner.ensureGreen();
     }
 
@@ -60,8 +61,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+            final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addField("counter").addSort("counter", SortOrder.ASC)
                     .execute().actionGet();
@@ -73,8 +73,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+            final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addField("counter").addSort("counter", SortOrder.ASC)
                     .setFrom(50).execute().actionGet();
@@ -86,8 +85,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+            final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addField("counter").addSort("counter", SortOrder.ASC)
                     .setFrom(90).execute().actionGet();
@@ -99,8 +97,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+            final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addField("counter").addSort("counter", SortOrder.ASC)
                     .setFrom(91).execute().actionGet();
@@ -113,8 +110,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+            final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addField("counter").addSort("counter", SortOrder.ASC)
                     .setFrom(95).execute().actionGet();
@@ -128,8 +124,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+            final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addField("counter").addSort("counter", SortOrder.ASC)
                     .setFrom(99).execute().actionGet();
@@ -142,8 +137,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+            final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addField("counter").addSort("counter", SortOrder.ASC)
                     .setFrom(100).execute().actionGet();
@@ -156,7 +150,7 @@ public class DynamicRankingPluginTest {
 
         {
             final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+                    .prepareSearch(index)
                     .setQuery(
                             QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addField("counter").addSort("counter", SortOrder.ASC)
@@ -170,7 +164,7 @@ public class DynamicRankingPluginTest {
 
         {
             final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+                    .prepareSearch(index)
                     .setQuery(
                             QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addField("counter").addSort("counter", SortOrder.ASC)
@@ -184,7 +178,7 @@ public class DynamicRankingPluginTest {
 
         {
             final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+                    .prepareSearch(index)
                     .setQuery(
                             QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addField("counter").addSort("counter", SortOrder.ASC)
@@ -197,8 +191,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = client
-                    .prepareSearch("sample")
+            final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.rangeQuery("counter"))
                     .addField("counter").addSort("counter", SortOrder.ASC)
                     .setFrom(0).setSize(101).execute().actionGet();
@@ -208,6 +201,13 @@ public class DynamicRankingPluginTest {
             assertEquals("100", hits.hits()[0].id());
             assertEquals("1", hits.hits()[99].id());
             assertEquals("101", hits.hits()[100].id());
+        }
+
+        {
+            final SearchResponse searchResponse = runner.search(index, type,
+                    QueryBuilders.queryString("msg:foo"), null, 0, 10);
+            final SearchHits hits = searchResponse.getHits();
+            assertEquals(0, hits.getTotalHits());
         }
     }
 }

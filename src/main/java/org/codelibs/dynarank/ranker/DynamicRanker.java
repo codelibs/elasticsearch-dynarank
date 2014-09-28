@@ -178,6 +178,10 @@ public class DynamicRanker extends AbstractComponent {
         return new ActionListener<SearchResponse>() {
             @Override
             public void onResponse(final SearchResponse response) {
+                if (response.getHits().getTotalHits() == 0) {
+                    listener.onResponse(response);
+                }
+
                 try {
                     final BytesStreamOutput out = new BytesStreamOutput();
                     response.writeTo(out);
