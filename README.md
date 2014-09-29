@@ -11,6 +11,7 @@ You can change top N documents in the search result with your re-ordering algori
 | Taste     | Elasticsearch |
 |:---------:|:-------------:|
 | master    | 1.3.X         |
+| 1.3.0     | 1.3.2         |
 
 ### Issues/Questions
 
@@ -20,8 +21,6 @@ Please file an [issue](https://github.com/codelibs/elasticsearch-dynarank/issues
 ## Installation
 
 ### Install DynaRank Plugin
-
-(will be released...)
 
     $ $ES_HOME/bin/plugin --install org.codelibs/elasticsearch-dynarank/1.3.0
 
