@@ -56,10 +56,8 @@ Create "sample" index:
 
 DynaRank plugin is enabled if your re-order script is set to the target index:
 
-    $ curl -XPOST 'localhost:9200/sample/_close'
     $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.script_sort.script=searchHits.sort%20%7Bs1%2C%20s2%20-%3E%20s2.field%28%27counter%27%29.value%28%29%20-%20s1.field%28%27counter%27%29.value%28%29%7D%20as%20org.elasticsearch.search.internal.InternalSearchHit%5B%5D'
     $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.reorder_size=5'
-    $ curl -XPOST 'localhost:9200/sample/_open'
 
 The above script is:
 
