@@ -5,12 +5,17 @@ Elasticsearch DynaRank Pugin
 
 DynaRank Plugin provides a feature for Dynamic Ranking at a search time.
 You can change top N documents in the search result with your re-ordering algorism.
+Elasticsearch has [rescoring](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/search-request-rescore.html "rescoring"), but DynaRank is different as below:
+
+ * DynaRank's reranking is executed on requested node only, not on each shard. 
+ * DynaRank uses a script language for reranking.
+
 
 ## Version
 
 | Version   | Elasticsearch |
 |:---------:|:-------------:|
-| master    | 1.3.X         |
+| master    | 1.4.X         |
 | 1.4.0     | 1.4.0.Beta1   |
 | 1.3.0     | 1.3.2         |
 
