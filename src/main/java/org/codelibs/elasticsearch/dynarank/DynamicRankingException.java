@@ -1,4 +1,4 @@
-package org.codelibs.dynarank;
+package org.codelibs.elasticsearch.dynarank;
 
 public class DynamicRankingException extends RuntimeException {
 

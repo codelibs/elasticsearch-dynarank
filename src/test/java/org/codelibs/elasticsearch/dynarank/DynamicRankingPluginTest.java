@@ -1,4 +1,4 @@
-package org.codelibs.dynarank;
+package org.codelibs.elasticsearch.dynarank;
 
 import static org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner.newConfigs;
 import static org.hamcrest.core.Is.is;
@@ -6,7 +6,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import org.codelibs.dynarank.ranker.DynamicRanker;
+import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;

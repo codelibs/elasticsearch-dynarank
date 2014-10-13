@@ -1,4 +1,4 @@
-package org.codelibs.dynarank.ranker;
+package org.codelibs.elasticsearch.dynarank.ranker;
 
 import static org.elasticsearch.action.search.ShardSearchFailure.readShardSearchFailure;
 import static org.elasticsearch.search.internal.InternalSearchHits.readSearchHits;
@@ -10,7 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.codelibs.dynarank.DynamicRankingException;
+import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -20,7 +21,6 @@ import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.component.AbstractComponent;
-import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStreamInput;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.settings.Settings;
@@ -62,9 +62,6 @@ public class DynamicRanker extends AbstractComponent {
 
     private ScriptService scriptService;
 
-    private static DynamicRanker INSTANCE;
-
-    @Inject
     public DynamicRanker(final Settings settings,
             final ClusterService clusterService,
             final ScriptService scriptService) {
@@ -77,15 +74,10 @@ public class DynamicRanker extends AbstractComponent {
         defaultReorderSize = settings.getAsInt(INDICES_DYNARANK_REORDER_SIZE,
                 200);
 
-        INSTANCE = this;
-    }
-
-    public static DynamicRanker get() {
-        return INSTANCE;
     }
 
     public ActionListener<SearchResponse> wrapActionListener(
-            final SearchRequest request,
+            final String action, final SearchRequest request,
             final ActionListener<SearchResponse> listener) {
         switch (request.searchType()) {
         case DFS_QUERY_AND_FETCH:
@@ -210,8 +202,13 @@ public class DynamicRanker extends AbstractComponent {
                                 in);
                     }
                     final boolean timedOut = in.readBoolean();
+                    Boolean terminatedEarly = null;
+                    if (in.getVersion().onOrAfter(Version.V_1_4_0_Beta1)) {
+                        terminatedEarly = in.readOptionalBoolean();
+                    }
                     final InternalSearchResponse internalResponse = new InternalSearchResponse(
-                            newHits, facets, aggregations, suggest, timedOut);
+                            newHits, facets, aggregations, suggest, timedOut,
+                            terminatedEarly);
                     final int totalShards = in.readVInt();
                     final int successfulShards = in.readVInt();
                     final int size = in.readVInt();
@@ -231,7 +228,11 @@ public class DynamicRanker extends AbstractComponent {
                             internalResponse, scrollId, totalShards,
                             successfulShards, tookInMillis, shardFailures);
                     if (headers != null) {
-                        newResponse.getHeaders().putAll(headers);
+                        for (final Map.Entry<String, Object> entry : headers
+                                .entrySet()) {
+                            newResponse.putHeader(entry.getKey(),
+                                    entry.getValue());
+                        }
                     }
                     listener.onResponse(newResponse);
 
@@ -299,8 +300,8 @@ public class DynamicRanker extends AbstractComponent {
             final CompiledScript compiledScript = scriptService.compile(
                     scriptInfo.getLang(), scriptInfo.getScript(),
                     scriptInfo.getScriptType());
-            hits = (InternalSearchHit[]) scriptService.execute(compiledScript,
-                    vars);
+            hits = (InternalSearchHit[]) scriptService.executable(
+                    compiledScript, vars).run();
         }
         return hits;
     }
