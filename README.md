@@ -8,9 +8,10 @@ You can change top N documents in the search result with your re-ordering algori
 
 ## Version
 
-| Taste     | Elasticsearch |
+| Version   | Elasticsearch |
 |:---------:|:-------------:|
 | master    | 1.3.X         |
+| 1.4.0     | 1.4.0.Beta1   |
 | 1.3.0     | 1.3.2         |
 
 ### Issues/Questions
@@ -22,7 +23,7 @@ Please file an [issue](https://github.com/codelibs/elasticsearch-dynarank/issues
 
 ### Install DynaRank Plugin
 
-    $ $ES_HOME/bin/plugin --install org.codelibs/elasticsearch-dynarank/1.3.0
+    $ $ES_HOME/bin/plugin --install org.codelibs/elasticsearch-dynarank/1.4.0
 
 ## Getting Started
 
