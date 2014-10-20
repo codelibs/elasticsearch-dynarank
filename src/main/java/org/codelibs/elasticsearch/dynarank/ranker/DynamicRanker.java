@@ -23,6 +23,8 @@ import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.io.stream.BytesStreamInput;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -55,6 +57,8 @@ public class DynamicRanker extends AbstractComponent {
     public static final String INDEX_DYNARANK_REORDER_SIZE = "index.dynarank.reorder_size";
 
     public static final String INDICES_DYNARANK_REORDER_SIZE = "indices.dynarank.reorder_size";
+
+    private ESLogger logger = ESLoggerFactory.getLogger("script.dynarank.sort");
 
     private ClusterService clusterService;
 
@@ -108,7 +112,7 @@ public class DynamicRanker extends AbstractComponent {
 
             final Settings indexSettings = index.settings();
             final String script = indexSettings.get(INDEX_DYNARANK_SCRIPT);
-            if (script == null) {
+            if (script == null || script.length() == 0) {
                 return null;
             }
             scriptInfos[i] = new ScriptInfo(script, indexSettings.get(
@@ -238,7 +242,7 @@ public class DynamicRanker extends AbstractComponent {
 
                     if (logger.isDebugEnabled()) {
                         logger.debug("Rewriting overhead time: {} - {} = {}ms",
-                                response.getTookInMillis(), tookInMillis,
+                                tookInMillis, response.getTookInMillis(),
                                 tookInMillis - response.getTookInMillis());
                     }
 
