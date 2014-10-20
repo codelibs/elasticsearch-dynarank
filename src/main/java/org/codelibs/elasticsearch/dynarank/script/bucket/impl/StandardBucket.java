@@ -18,25 +18,21 @@ public class StandardBucket implements Bucket {
         queue.add(hit);
     }
 
-   
     @Override
     public void consume() {
         queue.poll();
     }
 
-   
     @Override
     public InternalSearchHit get() {
         return queue.peek();
     }
 
-   
     @Override
     public float compare(final Object... values) {
-        return MinHash.compare(hash, (byte[])values[0]);
+        return MinHash.compare(hash, (byte[]) values[0]);
     }
 
-    
     @Override
     public void add(final InternalSearchHit hit) {
         queue.add(hit);
@@ -46,5 +42,10 @@ public class StandardBucket implements Bucket {
     public String toString() {
         return "StandardBucket [hash=" + Arrays.toString(hash) + ", queue="
                 + queue + "]";
+    }
+
+    @Override
+    public int size() {
+        return queue.size();
     }
 }

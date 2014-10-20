@@ -9,10 +9,15 @@ import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.search.SearchHitField;
 import org.elasticsearch.search.internal.InternalSearchHit;
 
 public class StandardBuckets implements Buckets {
+
+    private static ESLogger logger = ESLoggerFactory
+            .getLogger("script.dynarank.sort.bucket.standard");
 
     protected BucketFactory bucketFactory;
 
@@ -60,6 +65,14 @@ public class StandardBuckets implements Buckets {
 
     protected InternalSearchHit[] createHits(final int size,
             final List<Bucket> bucketList) {
+        if (logger.isDebugEnabled()) {
+            logger.debug("{} docs -> {} buckets", size, bucketList.size());
+            for (int i = 0; i < bucketList.size(); i++) {
+                Bucket bucket = bucketList.get(i);
+                logger.debug(" bucket[{}] -> {} docs", i, bucket.size());
+            }
+        }
+
         int pos = 0;
         final InternalSearchHit[] newSearchHits = new InternalSearchHit[size];
         while (pos < size) {

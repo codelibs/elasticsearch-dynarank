@@ -4,12 +4,13 @@ import org.elasticsearch.search.internal.InternalSearchHit;
 
 public interface Bucket {
 
-    public abstract float compare(Object... values);
+    float compare(Object... values);
 
-    public abstract InternalSearchHit get();
+    InternalSearchHit get();
 
-    public abstract void add(InternalSearchHit hit);
+    void add(InternalSearchHit hit);
 
-    public abstract void consume();
+    void consume();
 
+    int size();
 }

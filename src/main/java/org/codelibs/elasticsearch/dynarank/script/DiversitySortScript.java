@@ -18,6 +18,7 @@ import org.elasticsearch.script.ExecutableScript;
 import org.elasticsearch.script.NativeScriptFactory;
 
 public class DiversitySortScript extends AbstractExecutableScript {
+
     private static ESLogger logger = ESLoggerFactory
             .getLogger("script.dynarank.sort");
 
