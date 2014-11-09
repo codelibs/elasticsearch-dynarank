@@ -42,8 +42,10 @@ public class SearchActionFilter extends AbstractComponent implements
     }
 
     @Override
-    public void apply(final String action, final ActionRequest request,
-            final ActionListener listener, final ActionFilterChain chain) {
+    public void apply(final String action,
+            @SuppressWarnings("rawtypes") final ActionRequest request,
+            @SuppressWarnings("rawtypes") final ActionListener listener,
+            final ActionFilterChain chain) {
         if (!SearchAction.INSTANCE.name().equals(action)) {
             chain.proceed(action, request, listener);
             return;
@@ -59,6 +61,7 @@ public class SearchActionFilter extends AbstractComponent implements
                 currentSearchType.remove();
             }
         } else {
+            @SuppressWarnings("unchecked")
             final ActionListener<SearchResponse> wrappedListener = dynamicRanker
                     .wrapActionListener(action, searchRequest, listener);
             chain.proceed(action, request, wrappedListener == null ? listener
@@ -68,7 +71,8 @@ public class SearchActionFilter extends AbstractComponent implements
 
     @Override
     public void apply(final String action, final ActionResponse response,
-            final ActionListener listener, final ActionFilterChain chain) {
+            @SuppressWarnings("rawtypes") final ActionListener listener,
+            final ActionFilterChain chain) {
         chain.proceed(action, response, listener);
     }
 

@@ -98,38 +98,32 @@ public class DynamicRanker extends AbstractComponent {
         }
 
         final String[] indices = request.indices();
-        if (indices == null || indices.length == 0) {
+        if (indices == null || indices.length != 1) {
             return null;
         }
-        final ScriptInfo[] scriptInfos = new ScriptInfo[indices.length];
-        int maxReorderSize = -1;
-        for (int i = 0; i < indices.length; i++) {
-            final IndexMetaData index = clusterService.state().getMetaData()
-                    .index(indices[i]);
-            if (index == null) {
-                return null;
-            }
 
-            final Settings indexSettings = index.settings();
-            final String script = indexSettings.get(INDEX_DYNARANK_SCRIPT);
-            if (script == null || script.length() == 0) {
-                return null;
-            }
-            scriptInfos[i] = new ScriptInfo(script, indexSettings.get(
-                    INDEX_DYNARANK_SCRIPT_LANG, DEFAULT_SCRIPT_LANG),
-                    indexSettings.get(INDEX_DYNARANK_SCRIPT_TYPE,
-                            DEFAULT_SCRIPT_TYPE),
-                    indexSettings.getByPrefix(INDEX_DYNARANK_SCRIPT_PARAMS));
-
-            final Integer size = indexSettings.getAsInt(
-                    INDEX_DYNARANK_REORDER_SIZE, -1);
-            if (size > maxReorderSize) {
-                maxReorderSize = size;
-            }
+        final IndexMetaData index = clusterService.state().getMetaData()
+                .index(indices[0]);
+        if (index == null) {
+            return null;
         }
 
-        if (maxReorderSize == -1) {
-            maxReorderSize = defaultReorderSize;
+        final Settings indexSettings = index.settings();
+        final String script = indexSettings.get(INDEX_DYNARANK_SCRIPT);
+        if (script == null || script.length() == 0) {
+            return null;
+        }
+        final ScriptInfo scriptInfo = new ScriptInfo(script, indexSettings.get(
+                INDEX_DYNARANK_SCRIPT_LANG, DEFAULT_SCRIPT_LANG),
+                indexSettings.get(INDEX_DYNARANK_SCRIPT_TYPE,
+                        DEFAULT_SCRIPT_TYPE),
+                indexSettings.getByPrefix(INDEX_DYNARANK_SCRIPT_PARAMS));
+
+        int reorderSize = indexSettings.getAsInt(INDEX_DYNARANK_REORDER_SIZE,
+                -1);
+
+        if (reorderSize == -1) {
+            reorderSize = defaultReorderSize;
         }
 
         final long startTime = System.nanoTime();
@@ -139,12 +133,12 @@ public class DynamicRanker extends AbstractComponent {
                     .sourceAsMap(source);
             final int size = getInt(sourceAsMap.get("size"), 10);
             final int from = getInt(sourceAsMap.get("from"), 0);
-            if (from >= maxReorderSize) {
+            if (from >= reorderSize) {
                 return null;
             }
 
-            int maxSize = maxReorderSize;
-            if (from + size > maxReorderSize) {
+            int maxSize = reorderSize;
+            if (from + size > reorderSize) {
                 maxSize = from + size;
             }
             sourceAsMap.put("size", maxSize);
@@ -161,7 +155,7 @@ public class DynamicRanker extends AbstractComponent {
             request.source(builder.bytes(), true);
 
             return createSearchResponseListener(listener, from, size,
-                    maxReorderSize, startTime, scriptInfos);
+                    reorderSize, startTime, scriptInfo);
         } catch (final IOException e) {
             throw new DynamicRankingException("Failed to parse a source.", e);
         }
@@ -170,7 +164,7 @@ public class DynamicRanker extends AbstractComponent {
     private ActionListener<SearchResponse> createSearchResponseListener(
             final ActionListener<SearchResponse> listener, final int from,
             final int size, final int reorderSize, final long startTime,
-            final ScriptInfo[] scriptInfos) {
+            final ScriptInfo scriptInfo) {
         return new ActionListener<SearchResponse>() {
             @Override
             public void onResponse(final SearchResponse response) {
@@ -190,7 +184,7 @@ public class DynamicRanker extends AbstractComponent {
                     }
                     final InternalSearchHits hits = readSearchHits(in);
                     final InternalSearchHits newHits = doReorder(hits, from,
-                            size, reorderSize, scriptInfos);
+                            size, reorderSize, scriptInfo);
                     InternalFacets facets = null;
                     if (in.readBoolean()) {
                         facets = InternalFacets.readFacets(in);
@@ -261,12 +255,12 @@ public class DynamicRanker extends AbstractComponent {
 
     private InternalSearchHits doReorder(final InternalSearchHits hits,
             final int from, final int size, final int reorderSize,
-            final ScriptInfo[] scriptInfos) {
+            final ScriptInfo scriptInfo) {
         final InternalSearchHit[] searchHits = hits.internalHits();
         InternalSearchHit[] newSearchHits;
         if (searchHits.length <= reorderSize) {
             final InternalSearchHit[] targets = onReorder(searchHits,
-                    scriptInfos);
+                    scriptInfo);
             if (from >= targets.length) {
                 throw new DynamicRankingException("Invalid argument: " + from
                         + " >= " + targets.length);
@@ -279,7 +273,7 @@ public class DynamicRanker extends AbstractComponent {
         } else {
             InternalSearchHit[] targets = Arrays.copyOfRange(searchHits, 0,
                     reorderSize);
-            targets = onReorder(targets, scriptInfos);
+            targets = onReorder(targets, scriptInfo);
             final List<SearchHit> list = new ArrayList<>(size);
             for (int i = from; i < targets.length; i++) {
                 list.add(targets[i]);
@@ -294,20 +288,17 @@ public class DynamicRanker extends AbstractComponent {
     }
 
     private InternalSearchHit[] onReorder(final InternalSearchHit[] searchHits,
-            final ScriptInfo[] scriptInfos) {
+            final ScriptInfo scriptInfo) {
         final Map<String, Object> vars = new HashMap<String, Object>();
-        InternalSearchHit[] hits = searchHits;
-        for (final ScriptInfo scriptInfo : scriptInfos) {
-            vars.clear();
-            vars.put("searchHits", hits);
-            vars.putAll(scriptInfo.getSettings().getAsMap());
-            final CompiledScript compiledScript = scriptService.compile(
-                    scriptInfo.getLang(), scriptInfo.getScript(),
-                    scriptInfo.getScriptType());
-            hits = (InternalSearchHit[]) scriptService.executable(
-                    compiledScript, vars).run();
-        }
-        return hits;
+        final InternalSearchHit[] hits = searchHits;
+        vars.clear();
+        vars.put("searchHits", hits);
+        vars.putAll(scriptInfo.getSettings());
+        final CompiledScript compiledScript = scriptService.compile(
+                scriptInfo.getLang(), scriptInfo.getScript(),
+                scriptInfo.getScriptType());
+        return (InternalSearchHit[]) scriptService.executable(compiledScript,
+                vars).run();
     }
 
     private int getInt(final Object value, final int defaultValue) {
@@ -326,13 +317,21 @@ public class DynamicRanker extends AbstractComponent {
 
         private ScriptType scriptType;
 
-        private Settings settings;
+        private Map<String, Object> settings;
 
         ScriptInfo(final String script, final String lang,
                 final String scriptType, final Settings settings) {
             this.script = script;
             this.lang = lang;
-            this.settings = settings;
+            this.settings = new HashMap<>();
+            for (final String name : settings.names()) {
+                final String value = settings.get(name);
+                if (value != null) {
+                    this.settings.put(name, value);
+                } else {
+                    this.settings.put(name, settings.getAsArray(name));
+                }
+            }
             if ("INDEXED".equalsIgnoreCase(scriptType)) {
                 this.scriptType = ScriptType.INDEXED;
             } else if ("FILE".equalsIgnoreCase(scriptType)) {
@@ -354,7 +353,7 @@ public class DynamicRanker extends AbstractComponent {
             return scriptType;
         }
 
-        public Settings getSettings() {
+        public Map<String, Object> getSettings() {
             return settings;
         }
     }

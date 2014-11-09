@@ -4,11 +4,11 @@ import org.elasticsearch.search.internal.InternalSearchHit;
 
 public interface Bucket {
 
-    float compare(Object... values);
+    boolean contains(Object value);
 
     InternalSearchHit get();
 
-    void add(InternalSearchHit hit);
+    void add(Object... args);
 
     void consume();
 

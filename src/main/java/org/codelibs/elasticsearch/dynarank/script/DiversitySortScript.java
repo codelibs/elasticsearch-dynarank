@@ -4,6 +4,7 @@ import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.codelibs.elasticsearch.dynarank.script.bucket.impl.StandardBucketFactory;
@@ -47,6 +48,7 @@ public class DiversitySortScript extends AbstractExecutableScript {
                     .entrySet()) {
                 final String name = entry.getKey();
                 try {
+                    @SuppressWarnings("unchecked")
                     final Class<BucketFactory> clazz = (Class<BucketFactory>) Class
                             .forName(entry.getValue());
                     final Class<?>[] types = new Class<?>[] { Settings.class };
@@ -76,13 +78,18 @@ public class DiversitySortScript extends AbstractExecutableScript {
 
     @Override
     public Object run() {
-        final Object bucketFactoryName = params.get("bucket_factory");
-        BucketFactory bucketFactory = bucketFactories.get(bucketFactoryName);
-        if (bucketFactory == null) {
-            bucketFactory = bucketFactories.get(STANDARD);
+        Object bucketFactoryName = params.get("bucket_factory");
+        if (bucketFactoryName == null) {
+            bucketFactoryName = STANDARD;
         }
-        final Buckets buckets = bucketFactory.createBucketList(params);
+        final BucketFactory bucketFactory = bucketFactories
+                .get(bucketFactoryName);
+        if (bucketFactory == null) {
+            throw new DynamicRankingException("bucket_factory is invalid: "
+                    + bucketFactoryName);
+        }
 
+        final Buckets buckets = bucketFactory.createBucketList(params);
         return buckets.getHits();
     }
 

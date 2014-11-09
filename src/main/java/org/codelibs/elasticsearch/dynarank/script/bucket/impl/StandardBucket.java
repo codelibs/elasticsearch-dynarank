@@ -11,10 +11,14 @@ import org.elasticsearch.search.internal.InternalSearchHit;
 public class StandardBucket implements Bucket {
     protected Queue<InternalSearchHit> queue = new LinkedList<>();
 
-    protected byte[] hash;
+    protected byte[][] hashes;
 
-    public StandardBucket(final byte[] hash, final InternalSearchHit hit) {
-        this.hash = hash;
+    private float[] thresholds;
+
+    public StandardBucket(final InternalSearchHit hit, final byte[][] hashes,
+            final float[] thresholds) {
+        this.hashes = hashes;
+        this.thresholds = thresholds;
         queue.add(hit);
     }
 
@@ -29,18 +33,26 @@ public class StandardBucket implements Bucket {
     }
 
     @Override
-    public float compare(final Object... values) {
-        return MinHash.compare(hash, (byte[]) values[0]);
+    public boolean contains(final Object value) {
+        final byte[][] targets = (byte[][]) value;
+        for (int i = 0; i < thresholds.length; i++) {
+            final byte[] hash = hashes[i];
+            final byte[] target = targets[i];
+            if (MinHash.compare(hash, target) < thresholds[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
-    public void add(final InternalSearchHit hit) {
-        queue.add(hit);
+    public void add(final Object... args) {
+        queue.add((InternalSearchHit) args[0]);
     }
 
     @Override
     public String toString() {
-        return "StandardBucket [hash=" + Arrays.toString(hash) + ", queue="
+        return "StandardBucket [hash=" + Arrays.toString(hashes) + ", queue="
                 + queue + "]";
     }
 

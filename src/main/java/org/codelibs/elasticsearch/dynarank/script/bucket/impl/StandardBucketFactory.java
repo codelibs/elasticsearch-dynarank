@@ -23,6 +23,7 @@ public class StandardBucketFactory implements BucketFactory {
 
     @Override
     public Bucket createBucket(final Object... args) {
-        return new StandardBucket((byte[]) args[0], (InternalSearchHit) args[1]);
+        return new StandardBucket((InternalSearchHit) args[0],
+                (byte[][]) args[1], (float[]) args[2]);
     }
 }
