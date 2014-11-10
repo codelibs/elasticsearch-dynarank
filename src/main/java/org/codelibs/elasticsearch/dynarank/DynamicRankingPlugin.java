@@ -1,8 +1,15 @@
 package org.codelibs.elasticsearch.dynarank;
 
+import java.util.Collection;
+
 import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
+import org.codelibs.elasticsearch.dynarank.module.DynamicRankerModule;
+import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
 import org.codelibs.elasticsearch.dynarank.script.DiversitySortScript;
 import org.elasticsearch.action.ActionModule;
+import org.elasticsearch.common.collect.Lists;
+import org.elasticsearch.common.component.LifecycleComponent;
+import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.index.settings.IndexDynamicSettingsModule;
 import org.elasticsearch.plugins.AbstractPlugin;
 import org.elasticsearch.script.ScriptModule;
@@ -32,4 +39,22 @@ public class DynamicRankingPlugin extends AbstractPlugin {
         module.addDynamicSettings("index.dynarank.*");
     }
 
+    // for Service
+    @Override
+    public Collection<Class<? extends Module>> modules() {
+        final Collection<Class<? extends Module>> modules = Lists
+                .newArrayList();
+        modules.add(DynamicRankerModule.class);
+        return modules;
+    }
+
+    // for Service
+    @SuppressWarnings("rawtypes")
+    @Override
+    public Collection<Class<? extends LifecycleComponent>> services() {
+        final Collection<Class<? extends LifecycleComponent>> services = Lists
+                .newArrayList();
+        services.add(DynamicRanker.class);
+        return services;
+    }
 }

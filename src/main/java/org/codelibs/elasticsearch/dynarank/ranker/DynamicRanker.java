@@ -9,23 +9,32 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
+import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
+import org.elasticsearch.action.support.ActionFilter;
+import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.component.AbstractComponent;
+import org.elasticsearch.common.component.AbstractLifecycleComponent;
+import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStreamInput;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.script.CompiledScript;
@@ -39,8 +48,12 @@ import org.elasticsearch.search.internal.InternalSearchHits;
 import org.elasticsearch.search.internal.InternalSearchResponse;
 import org.elasticsearch.search.lookup.SourceLookup;
 import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.threadpool.ThreadPool;
 
-public class DynamicRanker extends AbstractComponent {
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
+public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
 
     public static final String DEFAULT_SCRIPT_TYPE = "inline";
 
@@ -58,6 +71,10 @@ public class DynamicRanker extends AbstractComponent {
 
     public static final String INDICES_DYNARANK_REORDER_SIZE = "indices.dynarank.reorder_size";
 
+    public static final String INDICES_DYNARANK_CACHE_EXPIRE = "indices.dynarank.cache.expire";
+
+    public static final String INDICES_DYNARANK_CACHE_CLEAN_INTERVAL = "indices.dynarank.cache.clean_interval";
+
     private ESLogger logger = ESLoggerFactory.getLogger("script.dynarank.sort");
 
     private ClusterService clusterService;
@@ -66,18 +83,66 @@ public class DynamicRanker extends AbstractComponent {
 
     private ScriptService scriptService;
 
+    private Cache<String, ScriptInfo> scriptInfoCache;
+
+    private ThreadPool threadPool;
+
+    private TimeValue cleanInterval;
+
+    private Reaper reaper;
+
+    @Inject
     public DynamicRanker(final Settings settings,
             final ClusterService clusterService,
-            final ScriptService scriptService) {
+            final ScriptService scriptService, final ThreadPool threadPool,
+            final ActionFilters filters) {
         super(settings);
         this.clusterService = clusterService;
         this.scriptService = scriptService;
+        this.threadPool = threadPool;
 
         logger.info("Initializing DynamicRanker");
 
         defaultReorderSize = settings.getAsInt(INDICES_DYNARANK_REORDER_SIZE,
-                200);
+                100);
+        final TimeValue expire = settings.getAsTime(
+                INDICES_DYNARANK_CACHE_EXPIRE, null);
+        cleanInterval = settings.getAsTime(
+                INDICES_DYNARANK_CACHE_CLEAN_INTERVAL,
+                TimeValue.timeValueSeconds(60));
 
+        final CacheBuilder<Object, Object> builder = CacheBuilder.newBuilder()
+                .concurrencyLevel(16);
+        if (expire != null) {
+            builder.expireAfterAccess(expire.millis(), TimeUnit.MILLISECONDS);
+        }
+        scriptInfoCache = builder.build();
+
+        for (final ActionFilter filter : filters.filters()) {
+            if (filter instanceof SearchActionFilter) {
+                ((SearchActionFilter) filter).setDynamicRanker(this);
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Set DynamicRanker to " + filter);
+                }
+            }
+        }
+
+    }
+
+    @Override
+    protected void doStart() throws ElasticsearchException {
+        reaper = new Reaper();
+        threadPool.schedule(cleanInterval, ThreadPool.Names.SAME, reaper);
+    }
+
+    @Override
+    protected void doStop() throws ElasticsearchException {
+    }
+
+    @Override
+    protected void doClose() throws ElasticsearchException {
+        reaper.close();
+        scriptInfoCache.invalidateAll();
     }
 
     public ActionListener<SearchResponse> wrapActionListener(
@@ -102,28 +167,41 @@ public class DynamicRanker extends AbstractComponent {
             return null;
         }
 
-        final IndexMetaData index = clusterService.state().getMetaData()
-                .index(indices[0]);
-        if (index == null) {
-            return null;
+        final String index = indices[0];
+        final ScriptInfo scriptInfo;
+        try {
+            scriptInfo = scriptInfoCache.get(index, new Callable<ScriptInfo>() {
+                @Override
+                public ScriptInfo call() throws Exception {
+                    final IndexMetaData indexMD = clusterService.state()
+                            .getMetaData().index(index);
+                    if (indexMD == null) {
+                        return null;
+                    }
+
+                    final Settings indexSettings = indexMD.settings();
+                    final String script = indexSettings
+                            .get(INDEX_DYNARANK_SCRIPT);
+                    if (script == null || script.length() == 0) {
+                        return null;
+                    }
+
+                    return new ScriptInfo(script, indexSettings.get(
+                            INDEX_DYNARANK_SCRIPT_LANG, DEFAULT_SCRIPT_LANG),
+                            indexSettings.get(INDEX_DYNARANK_SCRIPT_TYPE,
+                                    DEFAULT_SCRIPT_TYPE), indexSettings
+                                    .getByPrefix(INDEX_DYNARANK_SCRIPT_PARAMS),
+                            indexSettings.getAsInt(INDEX_DYNARANK_REORDER_SIZE,
+                                    defaultReorderSize));
+                }
+            });
+        } catch (final ExecutionException e) {
+            throw new DynamicRankingException("Failed to load ScriptInfo for "
+                    + index, e);
         }
 
-        final Settings indexSettings = index.settings();
-        final String script = indexSettings.get(INDEX_DYNARANK_SCRIPT);
-        if (script == null || script.length() == 0) {
+        if (scriptInfo == null) {
             return null;
-        }
-        final ScriptInfo scriptInfo = new ScriptInfo(script, indexSettings.get(
-                INDEX_DYNARANK_SCRIPT_LANG, DEFAULT_SCRIPT_LANG),
-                indexSettings.get(INDEX_DYNARANK_SCRIPT_TYPE,
-                        DEFAULT_SCRIPT_TYPE),
-                indexSettings.getByPrefix(INDEX_DYNARANK_SCRIPT_PARAMS));
-
-        int reorderSize = indexSettings.getAsInt(INDEX_DYNARANK_REORDER_SIZE,
-                -1);
-
-        if (reorderSize == -1) {
-            reorderSize = defaultReorderSize;
         }
 
         final long startTime = System.nanoTime();
@@ -133,12 +211,12 @@ public class DynamicRanker extends AbstractComponent {
                     .sourceAsMap(source);
             final int size = getInt(sourceAsMap.get("size"), 10);
             final int from = getInt(sourceAsMap.get("from"), 0);
-            if (from >= reorderSize) {
+            if (from >= scriptInfo.getReorderSize()) {
                 return null;
             }
 
-            int maxSize = reorderSize;
-            if (from + size > reorderSize) {
+            int maxSize = scriptInfo.getReorderSize();
+            if (from + size > scriptInfo.getReorderSize()) {
                 maxSize = from + size;
             }
             sourceAsMap.put("size", maxSize);
@@ -155,7 +233,7 @@ public class DynamicRanker extends AbstractComponent {
             request.source(builder.bytes(), true);
 
             return createSearchResponseListener(listener, from, size,
-                    reorderSize, startTime, scriptInfo);
+                    scriptInfo.getReorderSize(), startTime, scriptInfo);
         } catch (final IOException e) {
             throw new DynamicRankingException("Failed to parse a source.", e);
         }
@@ -319,10 +397,14 @@ public class DynamicRanker extends AbstractComponent {
 
         private Map<String, Object> settings;
 
+        private int reorderSize;
+
         ScriptInfo(final String script, final String lang,
-                final String scriptType, final Settings settings) {
+                final String scriptType, final Settings settings,
+                final int reorderSize) {
             this.script = script;
             this.lang = lang;
+            this.reorderSize = reorderSize;
             this.settings = new HashMap<>();
             for (final String name : settings.names()) {
                 final String value = settings.get(name);
@@ -356,5 +438,82 @@ public class DynamicRanker extends AbstractComponent {
         public Map<String, Object> getSettings() {
             return settings;
         }
+
+        public int getReorderSize() {
+            return reorderSize;
+        }
+
+        @Override
+        public String toString() {
+            return "ScriptInfo [script=" + script + ", lang=" + lang
+                    + ", scriptType=" + scriptType + ", settings=" + settings
+                    + ", reorderSize=" + reorderSize + "]";
+        }
     }
+
+    private class Reaper implements Runnable {
+        private volatile boolean closed;
+
+        void close() {
+            closed = true;
+        }
+
+        @Override
+        public void run() {
+            if (closed) {
+                return;
+            }
+
+            try {
+                for (final Map.Entry<String, ScriptInfo> entry : scriptInfoCache
+                        .asMap().entrySet()) {
+                    final String index = entry.getKey();
+
+                    final IndexMetaData indexMD = clusterService.state()
+                            .getMetaData().index(index);
+                    if (indexMD == null) {
+                        scriptInfoCache.invalidate(index);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Invalidate cache for " + index);
+                        }
+                        continue;
+                    }
+
+                    final Settings indexSettings = indexMD.settings();
+                    final String script = indexSettings
+                            .get(INDEX_DYNARANK_SCRIPT);
+                    if (script == null || script.length() == 0) {
+                        scriptInfoCache.invalidate(index);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Invalidate cache for " + index);
+                        }
+                        continue;
+                    }
+
+                    final ScriptInfo scriptInfo = new ScriptInfo(script,
+                            indexSettings.get(INDEX_DYNARANK_SCRIPT_LANG,
+                                    DEFAULT_SCRIPT_LANG), indexSettings.get(
+                                    INDEX_DYNARANK_SCRIPT_TYPE,
+                                    DEFAULT_SCRIPT_TYPE),
+                            indexSettings
+                                    .getByPrefix(INDEX_DYNARANK_SCRIPT_PARAMS),
+                            indexSettings.getAsInt(INDEX_DYNARANK_REORDER_SIZE,
+                                    defaultReorderSize));
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Reload cache for " + index + " => "
+                                + scriptInfo);
+                    }
+                    scriptInfoCache.put(index, scriptInfo);
+                }
+            } catch (final Exception e) {
+                logger.warn("Failed to update a cache for ScriptInfo.", e);
+            } finally {
+                threadPool.schedule(cleanInterval, ThreadPool.Names.GENERIC,
+                        reaper);
+            }
+
+        }
+
+    }
+
 }

@@ -10,11 +10,9 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
-import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.script.ScriptService;
 
 public class SearchActionFilter extends AbstractComponent implements
         ActionFilter {
@@ -26,12 +24,8 @@ public class SearchActionFilter extends AbstractComponent implements
     private ThreadLocal<SearchType> currentSearchType = new ThreadLocal<>();
 
     @Inject
-    public SearchActionFilter(final Settings settings,
-            final ClusterService clusterService,
-            final ScriptService scriptService) {
+    public SearchActionFilter(final Settings settings) {
         super(settings);
-        dynamicRanker = new DynamicRanker(settings, clusterService,
-                scriptService);
 
         order = settings.getAsInt("indices.dynarank.filter.order", 10);
     }
@@ -74,6 +68,10 @@ public class SearchActionFilter extends AbstractComponent implements
             @SuppressWarnings("rawtypes") final ActionListener listener,
             final ActionFilterChain chain) {
         chain.proceed(action, response, listener);
+    }
+
+    public void setDynamicRanker(final DynamicRanker dynamicRanker) {
+        this.dynamicRanker = dynamicRanker;
     }
 
 }

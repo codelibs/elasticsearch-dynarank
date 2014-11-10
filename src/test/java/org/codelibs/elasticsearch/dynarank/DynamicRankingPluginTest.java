@@ -13,6 +13,7 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.settings.ImmutableSettings.Builder;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -31,7 +32,13 @@ public class DynamicRankingPluginTest {
     @Before
     public void setUp() throws Exception {
         runner = new ElasticsearchClusterRunner();
-        runner.build(newConfigs().numOfNode(1).ramIndexStore());
+        runner.onBuild(new ElasticsearchClusterRunner.Builder() {
+            @Override
+            public void build(final int number, final Builder settingsBuilder) {
+                settingsBuilder.put("indices.dynarank.cache.clean_interval",
+                        "1s");
+            }
+        }).build(newConfigs().numOfNode(1).ramIndexStore());
         runner.ensureGreen();
     }
 
@@ -214,6 +221,18 @@ public class DynamicRankingPluginTest {
                     QueryBuilders.queryString("msg:foo"), null, 0, 10);
             final SearchHits hits = searchResponse.getHits();
             assertEquals(0, hits.getTotalHits());
+        }
+
+        for (int i = 0; i < 1000; i++) {
+            final SearchResponse searchResponse = client.prepareSearch(index)
+                    .setQuery(QueryBuilders.matchAllQuery())
+                    .addField("counter").addSort("counter", SortOrder.ASC)
+                    .execute().actionGet();
+            final SearchHits hits = searchResponse.getHits();
+            assertEquals(1000, hits.getTotalHits());
+            assertEquals(10, hits.hits().length);
+            assertEquals("100", hits.hits()[0].id());
+            assertEquals("91", hits.hits()[9].id());
         }
     }
 
@@ -443,6 +462,32 @@ public class DynamicRankingPluginTest {
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("89", hits[0].getSource().get("id"));
             assertEquals("90", hits[1].getSource().get("id"));
+        }
+
+        for (int i = 0; i < 1000; i++) {
+            final SearchResponse response = runner
+                    .client()
+                    .prepareSearch(index)
+                    .setTypes(type)
+                    .setQuery(QueryBuilders.matchAllQuery())
+                    .addSort(
+                            SortBuilders.fieldSort("order")
+                                    .order(SortOrder.ASC))
+                    .addFields("_source", "minhash_value").setFrom(0)
+                    .setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(100, searchHits.getTotalHits());
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("1", hits[0].getSource().get("id"));
+            assertEquals("7", hits[1].getSource().get("id"));
+            assertEquals("10", hits[2].getSource().get("id"));
+            assertEquals("13", hits[3].getSource().get("id"));
+            assertEquals("18", hits[4].getSource().get("id"));
+            assertEquals("2", hits[5].getSource().get("id"));
+            assertEquals("8", hits[6].getSource().get("id"));
+            assertEquals("11", hits[7].getSource().get("id"));
+            assertEquals("14", hits[8].getSource().get("id"));
+            assertEquals("19", hits[9].getSource().get("id"));
         }
 
     }
