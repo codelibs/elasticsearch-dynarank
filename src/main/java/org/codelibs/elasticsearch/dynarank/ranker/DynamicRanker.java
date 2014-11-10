@@ -209,6 +209,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         try {
             final Map<String, Object> sourceAsMap = SourceLookup
                     .sourceAsMap(source);
+            if (!getBoolean(sourceAsMap.get("_rerank"), true)) {
+                return null;
+            }
             final int size = getInt(sourceAsMap.get("size"), 10);
             final int from = getInt(sourceAsMap.get("from"), 0);
             if (from >= scriptInfo.getReorderSize()) {
@@ -384,6 +387,15 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             return ((Number) value).intValue();
         } else if (value instanceof String) {
             return Integer.parseInt(value.toString());
+        }
+        return defaultValue;
+    }
+
+    private boolean getBoolean(Object value, boolean defaultValue) {
+        if (value instanceof Boolean) {
+            return ((Boolean) value).booleanValue();
+        } else if (value instanceof String) {
+            return Boolean.parseBoolean(value.toString());
         }
         return defaultValue;
     }
