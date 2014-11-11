@@ -11,14 +11,14 @@ import org.elasticsearch.search.internal.InternalSearchHit;
 public class StandardBucket implements Bucket {
     protected Queue<InternalSearchHit> queue = new LinkedList<>();
 
-    protected byte[][] hashes;
+    protected byte[] hash;
 
-    private float[] thresholds;
+    private float threshold;
 
-    public StandardBucket(final InternalSearchHit hit, final byte[][] hashes,
-            final float[] thresholds) {
-        this.hashes = hashes;
-        this.thresholds = thresholds;
+    public StandardBucket(final InternalSearchHit hit, final byte[] hash,
+            final float threshold) {
+        this.hash = hash;
+        this.threshold = threshold;
         queue.add(hit);
     }
 
@@ -34,15 +34,8 @@ public class StandardBucket implements Bucket {
 
     @Override
     public boolean contains(final Object value) {
-        final byte[][] targets = (byte[][]) value;
-        for (int i = 0; i < thresholds.length; i++) {
-            final byte[] hash = hashes[i];
-            final byte[] target = targets[i];
-            if (MinHash.compare(hash, target) < thresholds[i]) {
-                return false;
-            }
-        }
-        return true;
+        final byte[] target = (byte[]) value;
+        return MinHash.compare(hash, target) >= threshold;
     }
 
     @Override
@@ -51,13 +44,13 @@ public class StandardBucket implements Bucket {
     }
 
     @Override
-    public String toString() {
-        return "StandardBucket [hash=" + Arrays.toString(hashes) + ", queue="
-                + queue + "]";
+    public int size() {
+        return queue.size();
     }
 
     @Override
-    public int size() {
-        return queue.size();
+    public String toString() {
+        return "StandardBucket [queue=" + queue + ", hash="
+                + Arrays.toString(hash) + ", threshold=" + threshold + "]";
     }
 }

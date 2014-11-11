@@ -391,7 +391,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         return defaultValue;
     }
 
-    private boolean getBoolean(Object value, boolean defaultValue) {
+    private boolean getBoolean(final Object value, final boolean defaultValue) {
         if (value instanceof Boolean) {
             return ((Boolean) value).booleanValue();
         } else if (value instanceof String) {

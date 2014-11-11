@@ -32,7 +32,7 @@ public class StandardBuckets implements Buckets {
 
     @Override
     public InternalSearchHit[] getHits() {
-        final InternalSearchHit[] searchHits = (InternalSearchHit[]) params
+        InternalSearchHit[] searchHits = (InternalSearchHit[]) params
                 .get("searchHits");
         final int length = searchHits.length;
         final String[] diversityFields = (String[]) params
@@ -46,30 +46,31 @@ public class StandardBuckets implements Buckets {
             throw new DynamicRankingException("diversity_thresholds is null.");
         }
         final float[] diversityThresholds = parseFloats(thresholds);
-        final List<Bucket> bucketList = new ArrayList<>();
-        for (int i = 0; i < length; i++) {
-            boolean insert = false;
-            final InternalSearchHit hit = searchHits[i];
-            final byte[][] hashes = new byte[diversityFields.length][];
 
-            for (int j = 0; j < diversityFields.length; j++) {
-                hashes[j] = getFieldValue(hit, diversityFields[j]);
-            }
-
-            for (final Bucket bucket : bucketList) {
-                if (bucket.contains(hashes)) {
-                    bucket.add(hit, hashes);
-                    insert = true;
-                    break;
+        for (int i = diversityFields.length - 1; i >= 0; i--) {
+            final String diversityField = diversityFields[i];
+            final float diversityThreshold = diversityThresholds[i];
+            final List<Bucket> bucketList = new ArrayList<>();
+            for (int j = 0; j < length; j++) {
+                boolean insert = false;
+                final InternalSearchHit hit = searchHits[j];
+                final byte[] hash = getFieldValue(hit, diversityField);
+                for (final Bucket bucket : bucketList) {
+                    if (bucket.contains(hash)) {
+                        bucket.add(hit, hash);
+                        insert = true;
+                        break;
+                    }
+                }
+                if (!insert) {
+                    bucketList.add(bucketFactory.createBucket(hit, hash,
+                            diversityThreshold));
                 }
             }
-            if (!insert) {
-                bucketList.add(bucketFactory.createBucket(hit, hashes,
-                        diversityThresholds));
-            }
+            searchHits = createHits(length, bucketList);
         }
 
-        return createHits(length, bucketList);
+        return searchHits;
     }
 
     private byte[] getFieldValue(final InternalSearchHit hit,

@@ -237,7 +237,117 @@ public class DynamicRankingPluginTest {
     }
 
     @Test
-    public void test_diversitySort() throws Exception {
+    public void diversityMultiSort() throws Exception {
+
+        final String index = "test_index";
+        final String type = "test_type";
+
+        {
+            // create an index
+            final String indexSettings = "{\"index\":{\"analysis\":{\"analyzer\":{"
+                    + "\"minhash_analyzer\":{\"type\":\"custom\",\"tokenizer\":\"standard\",\"filter\":[\"my_minhash\"]}"
+                    + "},\"filter\":{"
+                    + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
+                    + "}}},"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1]}},\"reorder_size\":20}"
+                    + "}";
+            runner.createIndex(index, ImmutableSettings.builder()
+                    .loadFromSource(indexSettings).build());
+            runner.ensureYellow(index);
+
+            // create a mapping
+            final XContentBuilder mappingBuilder = XContentFactory
+                    .jsonBuilder()//
+                    .startObject()//
+                    .startObject(type)//
+                    .startObject("properties")//
+
+                    // id
+                    .startObject("id")//
+                    .field("type", "string")//
+                    .field("index", "not_analyzed")//
+                    .endObject()//
+
+                    // msg
+                    .startObject("msg")//
+                    .field("type", "string")//
+                    .field("copy_to", "minhash_value")//
+                    .endObject()//
+
+                    // category
+                    .startObject("category")//
+                    .field("type", "string")//
+                    .endObject()//
+
+                    // order
+                    .startObject("order")//
+                    .field("type", "long")//
+                    .endObject()//
+
+                    // minhash
+                    .startObject("minhash_value")//
+                    .field("type", "minhash")//
+                    .field("minhash_analyzer", "minhash_analyzer")//
+                    .endObject()//
+
+                    .endObject()//
+                    .endObject()//
+                    .endObject();
+            runner.createMapping(index, type, mappingBuilder);
+        }
+
+        if (!runner.indexExists(index)) {
+            fail();
+        }
+
+        insertTestData(index, type, 1, "aaa bbb ccc", "cat1");
+        insertTestData(index, type, 2, "aaa bbb ccc", "cat1");
+        insertTestData(index, type, 3, "aaa bbb ccc", "cat2");
+        insertTestData(index, type, 4, "aaa bbb ddd", "cat1");
+        insertTestData(index, type, 5, "aaa bbb ddd", "cat2");
+        insertTestData(index, type, 6, "aaa bbb ddd", "cat2");
+        insertTestData(index, type, 7, "aaa bbb eee", "cat1");
+        insertTestData(index, type, 8, "aaa bbb eee", "cat1");
+        insertTestData(index, type, 9, "aaa bbb eee", "cat2");
+        insertTestData(index, type, 10, "aaa bbb fff", "cat1");
+
+        {
+            final SearchResponse response = runner
+                    .client()
+                    .prepareSearch(index)
+                    .setTypes(type)
+                    .setQuery(QueryBuilders.matchAllQuery())
+                    .addSort(
+                            SortBuilders.fieldSort("order")
+                                    .order(SortOrder.ASC))
+                    .addFields("_source", "minhash_value","category").setFrom(0)
+                    .setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(10, searchHits.getTotalHits());
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("1", hits[0].getSource().get("id"));
+            assertEquals("5", hits[1].getSource().get("id"));
+            assertEquals("7", hits[2].getSource().get("id"));
+            assertEquals("10", hits[3].getSource().get("id"));
+            assertEquals("3", hits[4].getSource().get("id"));
+            assertEquals("4", hits[5].getSource().get("id"));
+            assertEquals("9", hits[6].getSource().get("id"));
+            assertEquals("2", hits[7].getSource().get("id"));
+            assertEquals("6", hits[8].getSource().get("id"));
+            assertEquals("8", hits[9].getSource().get("id"));
+        }
+    }
+
+    private void insertTestData(String index, String type, int id, String msg,
+            String category) {
+        assertTrue(runner.insert(index, type, String.valueOf(id), "{\"id\":\""
+                + id + "\",\"msg\":\"" + msg + "\",\"category\":\"" + category
+                + "\",\"order\":" + id + "}").isCreated());
+
+    }
+
+    @Test
+    public void diversitySort() throws Exception {
 
         final String index = "test_index";
         final String type = "test_type";
