@@ -58,7 +58,7 @@ Create "sample" index:
        ]
     }'
 
-### Enable DynaRank Plugin
+### Enable Reranking
 
 DynaRank plugin is enabled if your re-order script is set to the target index:
 
@@ -71,4 +71,8 @@ The above script is:
 
 This setting sorts top 5 documents (5 is given by reorder\_size) by a descending order of "counter" field, and others are by an ascending order.
 
+### Disable Reranking
 
+Set an empty value to index.dynarank.script_sort.script:
+
+    $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.script_sort.script='
