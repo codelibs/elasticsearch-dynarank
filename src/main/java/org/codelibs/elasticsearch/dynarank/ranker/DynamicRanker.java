@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
@@ -174,7 +173,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
 
         final String index = indices[0];
         final ScriptInfo scriptInfo = getScriptInfo(index);
-        if (scriptInfo == null) {
+        if (scriptInfo == null || scriptInfo.getScript() == null) {
             return null;
         }
 
@@ -221,14 +220,14 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     final IndexMetaData indexMD = clusterService.state()
                             .getMetaData().index(index);
                     if (indexMD == null) {
-                        return null;
+                        return ScriptInfo.NO_SCRIPT_INFO;
                     }
 
                     final Settings indexSettings = indexMD.settings();
                     final String script = indexSettings
                             .get(INDEX_DYNARANK_SCRIPT);
                     if (script == null || script.length() == 0) {
-                        return null;
+                        return ScriptInfo.NO_SCRIPT_INFO;
                     }
 
                     return new ScriptInfo(script, indexSettings.get(
@@ -240,9 +239,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                                     defaultReorderSize));
                 }
             });
-        } catch (final ExecutionException e) {
-            throw new DynamicRankingException("Failed to load ScriptInfo for "
-                    + index, e);
+        } catch (final Exception e) {
+            logger.warn("Failed to load ScriptInfo for {}.", e, index);
+            return null;
         }
     }
 
@@ -396,6 +395,8 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
     }
 
     public static class ScriptInfo {
+        protected static ScriptInfo NO_SCRIPT_INFO = new ScriptInfo();
+
         private String script;
 
         private String lang;
@@ -405,6 +406,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         private Map<String, Object> settings;
 
         private int reorderSize;
+
+        ScriptInfo() {
+        }
 
         ScriptInfo(final String script, final String lang,
                 final String scriptType, final Settings settings,
