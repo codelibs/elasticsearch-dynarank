@@ -73,10 +73,15 @@
 						<configuration>
 							<artifactSet>
 								<includes>
+									<include>com.google.guava:guava</include>
 									<include>org.codelibs:minhash</include>
 								</includes>
 							</artifactSet>
 							<relocations>
+								<relocation>
+									<pattern>com.google</pattern>
+									<shadedPattern>org.codelibs.elasticsearch.dynarank.guava</shadedPattern>
+								</relocation>
 								<relocation>
 									<pattern>org.codelibs.minhash</pattern>
 									<shadedPattern>org.codelibs.elasticsearch.dynarank.minhash</shadedPattern>
@@ -116,6 +121,11 @@
 			<groupId>org.codelibs</groupId>
 			<artifactId>minhash</artifactId>
 			<version>0.1.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>18.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.codelibs</groupId>
