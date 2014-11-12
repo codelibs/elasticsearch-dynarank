@@ -8,7 +8,6 @@ import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
-import org.elasticsearch.common.base.Charsets;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
@@ -54,16 +53,16 @@ public class StandardBuckets implements Buckets {
             for (int j = 0; j < length; j++) {
                 boolean insert = false;
                 final InternalSearchHit hit = searchHits[j];
-                final byte[] hash = getFieldValue(hit, diversityField);
+                final Object value = getFieldValue(hit, diversityField);
                 for (final Bucket bucket : bucketList) {
-                    if (bucket.contains(hash)) {
-                        bucket.add(hit, hash);
+                    if (bucket.contains(value)) {
+                        bucket.add(hit, value);
                         insert = true;
                         break;
                     }
                 }
                 if (!insert) {
-                    bucketList.add(bucketFactory.createBucket(hit, hash,
+                    bucketList.add(bucketFactory.createBucket(hit, value,
                             diversityThreshold));
                 }
             }
@@ -73,7 +72,7 @@ public class StandardBuckets implements Buckets {
         return searchHits;
     }
 
-    private byte[] getFieldValue(final InternalSearchHit hit,
+    private Object getFieldValue(final InternalSearchHit hit,
             final String fieldName) {
         final SearchHitField field = hit.getFields().get(fieldName);
         if (field == null) {
@@ -84,10 +83,11 @@ public class StandardBuckets implements Buckets {
         if (object instanceof BytesArray) {
             return ((BytesArray) object).toBytes();
         } else if (object instanceof String) {
-            return ((String) object).getBytes(Charsets.UTF_8);
+            return object;
+        } else if (object instanceof Number) {
+            return object;
         }
-        throw new DynamicRankingException(fieldName
-                + " field is unknown type: " + object);
+        return null;
     }
 
     private float[] parseFloats(final String[] strings) {

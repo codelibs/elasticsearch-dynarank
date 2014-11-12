@@ -157,6 +157,11 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             return null;
         }
 
+        final Object isRerank = request.getHeader("_rerank");
+        if (isRerank instanceof Boolean && !((Boolean) isRerank).booleanValue()) {
+            return null;
+        }
+
         final BytesReference source = request.source();
         if (source == null) {
             return null;
@@ -168,38 +173,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         }
 
         final String index = indices[0];
-        final ScriptInfo scriptInfo;
-        try {
-            scriptInfo = scriptInfoCache.get(index, new Callable<ScriptInfo>() {
-                @Override
-                public ScriptInfo call() throws Exception {
-                    final IndexMetaData indexMD = clusterService.state()
-                            .getMetaData().index(index);
-                    if (indexMD == null) {
-                        return null;
-                    }
-
-                    final Settings indexSettings = indexMD.settings();
-                    final String script = indexSettings
-                            .get(INDEX_DYNARANK_SCRIPT);
-                    if (script == null || script.length() == 0) {
-                        return null;
-                    }
-
-                    return new ScriptInfo(script, indexSettings.get(
-                            INDEX_DYNARANK_SCRIPT_LANG, DEFAULT_SCRIPT_LANG),
-                            indexSettings.get(INDEX_DYNARANK_SCRIPT_TYPE,
-                                    DEFAULT_SCRIPT_TYPE), indexSettings
-                                    .getByPrefix(INDEX_DYNARANK_SCRIPT_PARAMS),
-                            indexSettings.getAsInt(INDEX_DYNARANK_REORDER_SIZE,
-                                    defaultReorderSize));
-                }
-            });
-        } catch (final ExecutionException e) {
-            throw new DynamicRankingException("Failed to load ScriptInfo for "
-                    + index, e);
-        }
-
+        final ScriptInfo scriptInfo = getScriptInfo(index);
         if (scriptInfo == null) {
             return null;
         }
@@ -209,9 +183,6 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         try {
             final Map<String, Object> sourceAsMap = SourceLookup
                     .sourceAsMap(source);
-            if (!getBoolean(sourceAsMap.get("_rerank"), true)) {
-                return null;
-            }
             final int size = getInt(sourceAsMap.get("size"), 10);
             final int from = getInt(sourceAsMap.get("from"), 0);
             if (from >= scriptInfo.getReorderSize()) {
@@ -239,6 +210,39 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     scriptInfo.getReorderSize(), startTime, scriptInfo);
         } catch (final IOException e) {
             throw new DynamicRankingException("Failed to parse a source.", e);
+        }
+    }
+
+    public ScriptInfo getScriptInfo(final String index) {
+        try {
+            return scriptInfoCache.get(index, new Callable<ScriptInfo>() {
+                @Override
+                public ScriptInfo call() throws Exception {
+                    final IndexMetaData indexMD = clusterService.state()
+                            .getMetaData().index(index);
+                    if (indexMD == null) {
+                        return null;
+                    }
+
+                    final Settings indexSettings = indexMD.settings();
+                    final String script = indexSettings
+                            .get(INDEX_DYNARANK_SCRIPT);
+                    if (script == null || script.length() == 0) {
+                        return null;
+                    }
+
+                    return new ScriptInfo(script, indexSettings.get(
+                            INDEX_DYNARANK_SCRIPT_LANG, DEFAULT_SCRIPT_LANG),
+                            indexSettings.get(INDEX_DYNARANK_SCRIPT_TYPE,
+                                    DEFAULT_SCRIPT_TYPE), indexSettings
+                                    .getByPrefix(INDEX_DYNARANK_SCRIPT_PARAMS),
+                            indexSettings.getAsInt(INDEX_DYNARANK_REORDER_SIZE,
+                                    defaultReorderSize));
+                }
+            });
+        } catch (final ExecutionException e) {
+            throw new DynamicRankingException("Failed to load ScriptInfo for "
+                    + index, e);
         }
     }
 
@@ -391,16 +395,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         return defaultValue;
     }
 
-    private boolean getBoolean(final Object value, final boolean defaultValue) {
-        if (value instanceof Boolean) {
-            return ((Boolean) value).booleanValue();
-        } else if (value instanceof String) {
-            return Boolean.parseBoolean(value.toString());
-        }
-        return defaultValue;
-    }
-
-    private static class ScriptInfo {
+    public static class ScriptInfo {
         private String script;
 
         private String lang;
