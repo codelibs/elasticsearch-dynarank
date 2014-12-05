@@ -386,6 +386,32 @@ public class DynamicRankingPluginTest {
             assertEquals("6", hits[8].getSource().get("id"));
             assertEquals("8", hits[9].getSource().get("id"));
         }
+
+        // no fields
+        {
+            final SearchResponse response = runner
+                    .client()
+                    .prepareSearch(index)
+                    .setTypes(type)
+                    .setQuery(QueryBuilders.matchAllQuery())
+                    .addSort(
+                            SortBuilders.fieldSort("order")
+                                    .order(SortOrder.ASC)).setFrom(0)
+                    .setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(10, searchHits.getTotalHits());
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("1", hits[0].getSource().get("id"));
+            assertEquals("2", hits[1].getSource().get("id"));
+            assertEquals("3", hits[2].getSource().get("id"));
+            assertEquals("4", hits[3].getSource().get("id"));
+            assertEquals("5", hits[4].getSource().get("id"));
+            assertEquals("6", hits[5].getSource().get("id"));
+            assertEquals("7", hits[6].getSource().get("id"));
+            assertEquals("8", hits[7].getSource().get("id"));
+            assertEquals("9", hits[8].getSource().get("id"));
+            assertEquals("10", hits[9].getSource().get("id"));
+        }
     }
 
     private void insertTestData(final String index, final String type,
