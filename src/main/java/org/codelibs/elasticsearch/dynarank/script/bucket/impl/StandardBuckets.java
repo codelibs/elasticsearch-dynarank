@@ -61,6 +61,11 @@ public class StandardBuckets implements Buckets {
                 final InternalSearchHit hit = searchHits[j];
                 final Object value = getFieldValue(hit, diversityField);
                 if (value == this) {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug(
+                                "diversityField {} does not exist. Reranking is skipped.",
+                                diversityField);
+                    }
                     return searchHits;
                 }
                 for (final Bucket bucket : bucketList) {
