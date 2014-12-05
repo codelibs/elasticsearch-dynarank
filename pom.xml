@@ -27,7 +27,7 @@
 		<version>9</version>
 	</parent>
 	<properties>
-		<elasticsearch.version>1.4.0</elasticsearch.version>
+		<elasticsearch.version>1.4.1</elasticsearch.version>
 	</properties>
 	<build>
 		<plugins>
