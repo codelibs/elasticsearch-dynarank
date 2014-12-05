@@ -252,6 +252,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         return new ActionListener<SearchResponse>() {
             @Override
             public void onResponse(final SearchResponse response) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Reranking results: {}", response);
+                }
                 if (response.getHits().getTotalHits() == 0) {
                     listener.onResponse(response);
                 }
@@ -260,11 +263,17 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     final BytesStreamOutput out = new BytesStreamOutput();
                     response.writeTo(out);
 
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Reading headers...");
+                    }
                     final BytesStreamInput in = new BytesStreamInput(
                             out.bytes());
                     Map<String, Object> headers = null;
                     if (in.readBoolean()) {
                         headers = in.readMap();
+                    }
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Reading hits...");
                     }
                     final InternalSearchHits hits = readSearchHits(in);
                     final InternalSearchHits newHits = doReorder(hits, from,
@@ -273,10 +282,16 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     if (in.readBoolean()) {
                         facets = InternalFacets.readFacets(in);
                     }
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Reading aggregations...");
+                    }
                     InternalAggregations aggregations = null;
                     if (in.readBoolean()) {
                         aggregations = InternalAggregations
                                 .readAggregations(in);
+                    }
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Reading suggest...");
                     }
                     Suggest suggest = null;
                     if (in.readBoolean()) {
@@ -306,6 +321,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     final String scrollId = in.readOptionalString();
                     final long tookInMillis = (System.nanoTime() - startTime) / 1000000;
 
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Creating new SearchResponse...");
+                    }
                     final SearchResponse newResponse = new SearchResponse(
                             internalResponse, scrollId, totalShards,
                             successfulShards, tookInMillis, shardFailures);
@@ -325,6 +343,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     }
 
                 } catch (final Exception e) {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Failed to parse a search response.", e);
+                    }
                     throw new DynamicRankingException(
                             "Failed to parse a search response.", e);
                 }
@@ -342,6 +363,10 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             final ScriptInfo scriptInfo) {
         final InternalSearchHit[] searchHits = hits.internalHits();
         InternalSearchHit[] newSearchHits;
+        if (logger.isDebugEnabled()) {
+            logger.debug("searchHits.length <= reorderSize: {}",
+                    searchHits.length <= reorderSize);
+        }
         if (searchHits.length <= reorderSize) {
             final InternalSearchHit[] targets = onReorder(searchHits,
                     scriptInfo);
@@ -366,6 +391,10 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                 list.add(searchHits[i]);
             }
             newSearchHits = list.toArray(new InternalSearchHit[list.size()]);
+        }
+        if (logger.isDebugEnabled()) {
+            logger.debug("Reordered results: {}",
+                    Arrays.toString(newSearchHits));
         }
         return new InternalSearchHits(newSearchHits, hits.totalHits(),
                 hits.maxScore());

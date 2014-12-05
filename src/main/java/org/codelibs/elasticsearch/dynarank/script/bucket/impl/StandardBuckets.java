@@ -1,6 +1,7 @@
 package org.codelibs.elasticsearch.dynarank.script.bucket.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -46,6 +47,11 @@ public class StandardBuckets implements Buckets {
         }
         final float[] diversityThresholds = parseFloats(thresholds);
 
+        if (logger.isDebugEnabled()) {
+            logger.debug("diversity_fields: {}, : diversity_thresholds{}",
+                    Arrays.toString(diversityFields),
+                    Arrays.toString(thresholds));
+        }
         for (int i = diversityFields.length - 1; i >= 0; i--) {
             final String diversityField = diversityFields[i];
             final float diversityThreshold = diversityThresholds[i];
@@ -69,6 +75,9 @@ public class StandardBuckets implements Buckets {
             searchHits = createHits(length, bucketList);
         }
 
+        if (logger.isDebugEnabled()) {
+            logger.debug("searchHits: {}", Arrays.toString(searchHits));
+        }
         return searchHits;
     }
 

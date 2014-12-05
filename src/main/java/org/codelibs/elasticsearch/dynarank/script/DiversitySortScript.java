@@ -78,6 +78,9 @@ public class DiversitySortScript extends AbstractExecutableScript {
 
     @Override
     public Object run() {
+        if (logger.isDebugEnabled()) {
+            logger.debug("Starting DiversitySortScript...");
+        }
         Object bucketFactoryName = params.get("bucket_factory");
         if (bucketFactoryName == null) {
             bucketFactoryName = STANDARD;
