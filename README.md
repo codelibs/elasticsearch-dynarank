@@ -76,3 +76,31 @@ This setting sorts top 5 documents (5 is given by reorder\_size) by a descending
 Set an empty value to index.dynarank.script_sort.script:
 
     $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.script_sort.script='
+
+## References
+
+### dynarank\_diversity\_sort Script Sort
+
+DynaRank plugin provides a sort feature for a diversity problem.
+The sort script is dynarank\_diversity\_sort.
+The configuration is below:
+
+    curl -XPUT 'localhost:9200/sample/_settings' -d '
+    {
+      "index" : {
+        "dynarank":{
+          "script_sort":{
+            "lang":"native",
+            "script":"dynarank_diversity_sort",
+            "params":{
+              "diversity_fields":["filedname1", "filedname2"],
+              "diversity_thresholds":[0.95, 1]
+            }
+          },
+          "reorder_size":100
+         }
+      }
+    }'
+
+diversity\_fields is fields for a diversity.
+diversity\_thresholds is a threshold for a similarity of each document.
