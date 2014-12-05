@@ -60,6 +60,9 @@ public class StandardBuckets implements Buckets {
                 boolean insert = false;
                 final InternalSearchHit hit = searchHits[j];
                 final Object value = getFieldValue(hit, diversityField);
+                if (value == this) {
+                    return searchHits;
+                }
                 for (final Bucket bucket : bucketList) {
                     if (bucket.contains(value)) {
                         bucket.add(hit, value);
@@ -85,8 +88,7 @@ public class StandardBuckets implements Buckets {
             final String fieldName) {
         final SearchHitField field = hit.getFields().get(fieldName);
         if (field == null) {
-            throw new DynamicRankingException(fieldName
-                    + " field does not exists: field:" + field);
+            return this;
         }
         final Object object = field.getValue();
         if (object instanceof BytesArray) {
