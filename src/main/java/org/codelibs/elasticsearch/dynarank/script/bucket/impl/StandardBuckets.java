@@ -76,7 +76,7 @@ public class StandardBuckets implements Buckets {
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("searchHits: {}", Arrays.toString(searchHits));
+            logger.debug("searchHits: {}", searchHits.length);
         }
         return searchHits;
     }

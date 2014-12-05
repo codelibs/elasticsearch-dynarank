@@ -392,10 +392,6 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             }
             newSearchHits = list.toArray(new InternalSearchHit[list.size()]);
         }
-        if (logger.isDebugEnabled()) {
-            logger.debug("Reordered results: {}",
-                    Arrays.toString(newSearchHits));
-        }
         return new InternalSearchHits(newSearchHits, hits.totalHits(),
                 hits.maxScore());
     }
