@@ -420,7 +420,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
     }
 
     public static class ScriptInfo {
-        protected static ScriptInfo NO_SCRIPT_INFO = new ScriptInfo();
+        protected final static ScriptInfo NO_SCRIPT_INFO = new ScriptInfo();
 
         private String script;
 
@@ -433,6 +433,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         private int reorderSize;
 
         ScriptInfo() {
+            // nothing
         }
 
         ScriptInfo(final String script, final String lang,
