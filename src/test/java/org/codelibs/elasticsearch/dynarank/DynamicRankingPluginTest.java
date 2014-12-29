@@ -11,6 +11,8 @@ import static org.junit.Assert.fail;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker.ScriptInfo;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
@@ -39,6 +41,7 @@ public class DynamicRankingPluginTest {
             public void build(final int number, final Builder settingsBuilder) {
                 settingsBuilder.put("indices.dynarank.cache.clean_interval",
                         "1s");
+                settingsBuilder.put("http.cors.enabled", true);
             }
         }).build(
                 newConfigs().clusterName("es-dynarank").numOfNode(1)
@@ -59,16 +62,23 @@ public class DynamicRankingPluginTest {
         final Client client = runner.client();
 
         final String index = "sample";
+        final String alias = "test";
         final String type = "data";
-        runner.createIndex(
-                index,
-                ImmutableSettings
-                        .builder()
-                        .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, 100)
-                        .put(DynamicRanker.INDEX_DYNARANK_SCRIPT,
-                                "searchHits.sort {s1, s2 -> s2.field('counter').value() - s1.field('counter').value()} as org.elasticsearch.search.internal.InternalSearchHit[]")
-                        .put(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS + "foo",
-                                "bar").build());
+        CreateIndexResponse createIndexResponse = runner
+                .createIndex(
+                        index,
+                        ImmutableSettings
+                                .builder()
+                                .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE,
+                                        100)
+                                .put(DynamicRanker.INDEX_DYNARANK_SCRIPT,
+                                        "searchHits.sort {s1, s2 -> s2.field('counter').value() - s1.field('counter').value()} as org.elasticsearch.search.internal.InternalSearchHit[]")
+                                .put(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS
+                                        + "foo", "bar").build());
+        assertTrue(createIndexResponse.isAcknowledged());
+        IndicesAliasesResponse aliasesResponse = runner.updateAlias(alias,
+                new String[] { index }, null);
+        assertTrue(aliasesResponse.isAcknowledged());
 
         for (int i = 1; i <= 1000; i++) {
             final IndexResponse indexResponse1 = runner.insert(index, type,
@@ -96,6 +106,25 @@ public class DynamicRankingPluginTest {
         final ScriptInfo scriptInfo3 = ranker.getScriptInfo(index);
         assertTrue(scriptInfo1 == scriptInfo2);
         assertFalse(scriptInfo1 == scriptInfo3);
+
+        {
+            final SearchResponse searchResponse = client.prepareSearch(alias)
+                    .setQuery(QueryBuilders.matchAllQuery())
+                    .addField("counter").addSort("counter", SortOrder.ASC)
+                    .execute().actionGet();
+            final SearchHits hits = searchResponse.getHits();
+            assertEquals(1000, hits.getTotalHits());
+            assertEquals(10, hits.hits().length);
+            assertEquals("100", hits.hits()[0].id());
+            assertEquals("91", hits.hits()[9].id());
+        }
+
+        final ScriptInfo scriptInfo4 = ranker.getScriptInfo(alias);
+        final ScriptInfo scriptInfo5 = ranker.getScriptInfo(alias);
+        Thread.sleep(2000);
+        final ScriptInfo scriptInfo6 = ranker.getScriptInfo(alias);
+        assertTrue(scriptInfo4 == scriptInfo5);
+        assertFalse(scriptInfo4 == scriptInfo6);
     }
 
     @Test
@@ -105,16 +134,23 @@ public class DynamicRankingPluginTest {
         final Client client = runner.client();
 
         final String index = "sample";
+        final String alias = "test";
         final String type = "data";
-        runner.createIndex(
-                index,
-                ImmutableSettings
-                        .builder()
-                        .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, 100)
-                        .put(DynamicRanker.INDEX_DYNARANK_SCRIPT,
-                                "searchHits.sort {s1, s2 -> s2.field('counter').value() - s1.field('counter').value()} as org.elasticsearch.search.internal.InternalSearchHit[]")
-                        .put(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS + "foo",
-                                "bar").build());
+        CreateIndexResponse createIndexResponse = runner
+                .createIndex(
+                        index,
+                        ImmutableSettings
+                                .builder()
+                                .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE,
+                                        100)
+                                .put(DynamicRanker.INDEX_DYNARANK_SCRIPT,
+                                        "searchHits.sort {s1, s2 -> s2.field('counter').value() - s1.field('counter').value()} as org.elasticsearch.search.internal.InternalSearchHit[]")
+                                .put(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS
+                                        + "foo", "bar").build());
+        assertTrue(createIndexResponse.isAcknowledged());
+        IndicesAliasesResponse aliasesResponse = runner.updateAlias(alias,
+                new String[] { index }, null);
+        assertTrue(aliasesResponse.isAcknowledged());
 
         for (int i = 1; i <= 1000; i++) {
             final IndexResponse indexResponse1 = runner.insert(index, type,
@@ -123,6 +159,15 @@ public class DynamicRankingPluginTest {
             assertTrue(indexResponse1.isCreated());
         }
 
+        assertResultOrder(client, index, type);
+        assertResultOrder(client, alias, type);
+
+        runner.createIndex(index + "2", null);
+        runner.updateAlias(alias, new String[] { index + "2" }, null);
+        assertResultOrder(client, alias, type);
+    }
+
+    private void assertResultOrder(Client client, String index, String type) {
         {
             final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())

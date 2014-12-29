@@ -22,9 +22,11 @@ import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilters;
+import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
@@ -217,20 +219,30 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             return scriptInfoCache.get(index, new Callable<ScriptInfo>() {
                 @Override
                 public ScriptInfo call() throws Exception {
-                    final IndexMetaData indexMD = clusterService.state()
-                            .getMetaData().index(index);
-                    if (indexMD == null) {
+                    final MetaData metaData = clusterService.state()
+                            .getMetaData();
+                    String[] concreteIndices = metaData.concreteIndices(
+                            IndicesOptions.strictExpandOpenAndForbidClosed(),
+                            index);
+                    Settings indexSettings = null;
+                    for (String concreteIndex : concreteIndices) {
+                        IndexMetaData indexMD = metaData.index(concreteIndex);
+                        if (indexMD != null) {
+                            final Settings scriptSettings = indexMD.settings();
+                            final String script = scriptSettings
+                                    .get(INDEX_DYNARANK_SCRIPT);
+                            if (script != null && script.length() > 0) {
+                                indexSettings = scriptSettings;
+                            }
+                        }
+                    }
+
+                    if (indexSettings == null) {
                         return ScriptInfo.NO_SCRIPT_INFO;
                     }
 
-                    final Settings indexSettings = indexMD.settings();
-                    final String script = indexSettings
-                            .get(INDEX_DYNARANK_SCRIPT);
-                    if (script == null || script.length() == 0) {
-                        return ScriptInfo.NO_SCRIPT_INFO;
-                    }
-
-                    return new ScriptInfo(script, indexSettings.get(
+                    return new ScriptInfo(indexSettings
+                            .get(INDEX_DYNARANK_SCRIPT), indexSettings.get(
                             INDEX_DYNARANK_SCRIPT_LANG, DEFAULT_SCRIPT_LANG),
                             indexSettings.get(INDEX_DYNARANK_SCRIPT_TYPE,
                                     DEFAULT_SCRIPT_TYPE), indexSettings
