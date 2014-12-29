@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.codelibs</groupId>
 	<artifactId>elasticsearch-dynarank</artifactId>
-	<version>1.4.3-SNAPSHOT</version>
+	<version>1.4.3</version>
 	<packaging>jar</packaging>
 	<description>This plugin provides a feature to re-rank a search result at the search time.</description>
 	<inceptionYear>2011</inceptionYear>
