@@ -547,6 +547,18 @@ public class DynamicRankingPluginTest {
                     .client()
                     .prepareSearch(index)
                     .setTypes(type)
+                    .setQuery(QueryBuilders.idsQuery("0"))
+                    .addFields("_source", "minhash_value").setFrom(20)
+                    .setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(0, searchHits.getTotalHits());
+        }
+
+        {
+            final SearchResponse response = runner
+                    .client()
+                    .prepareSearch(index)
+                    .setTypes(type)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addSort(
                             SortBuilders.fieldSort("order")

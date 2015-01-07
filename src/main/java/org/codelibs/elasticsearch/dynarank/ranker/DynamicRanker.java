@@ -264,11 +264,16 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         return new ActionListener<SearchResponse>() {
             @Override
             public void onResponse(final SearchResponse response) {
+                if (response.getHits().getTotalHits() == 0) {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("No reranking results: {}", response);
+                    }
+                    listener.onResponse(response);
+                    return;
+                }
+
                 if (logger.isDebugEnabled()) {
                     logger.debug("Reranking results: {}", response);
-                }
-                if (response.getHits().getTotalHits() == 0) {
-                    listener.onResponse(response);
                 }
 
                 try {
