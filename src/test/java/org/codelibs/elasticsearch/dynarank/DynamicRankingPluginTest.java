@@ -312,6 +312,50 @@ public class DynamicRankingPluginTest {
         }
 
         {
+            final SearchResponse searchResponse = client.prepareSearch(index)
+                    .setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
+                    .addField("counter").addSort("counter", SortOrder.ASC)
+                    .setFrom(0).setSize(10).execute().actionGet();
+            final SearchHits hits = searchResponse.getHits();
+            assertEquals(20, hits.getTotalHits());
+            assertEquals(10, hits.hits().length);
+            assertEquals("20", hits.hits()[0].id());
+            assertEquals("11", hits.hits()[9].id());
+        }
+
+        {
+            final SearchResponse searchResponse = client.prepareSearch(index)
+                    .setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
+                    .addField("counter").addSort("counter", SortOrder.ASC)
+                    .setFrom(15).setSize(10).execute().actionGet();
+            final SearchHits hits = searchResponse.getHits();
+            assertEquals(20, hits.getTotalHits());
+            assertEquals(5, hits.hits().length);
+            assertEquals("5", hits.hits()[0].id());
+            assertEquals("1", hits.hits()[4].id());
+        }
+
+        {
+            final SearchResponse searchResponse = client.prepareSearch(index)
+                    .setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
+                    .addField("counter").addSort("counter", SortOrder.ASC)
+                    .setFrom(20).setSize(10).execute().actionGet();
+            final SearchHits hits = searchResponse.getHits();
+            assertEquals(20, hits.getTotalHits());
+            assertEquals(0, hits.hits().length);
+        }
+
+        {
+            final SearchResponse searchResponse = client.prepareSearch(index)
+                    .setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
+                    .addField("counter").addSort("counter", SortOrder.ASC)
+                    .setFrom(21).setSize(10).execute().actionGet();
+            final SearchHits hits = searchResponse.getHits();
+            assertEquals(20, hits.getTotalHits());
+            assertEquals(0, hits.hits().length);
+        }
+
+        {
             final SearchResponse searchResponse = runner.search(index, type,
                     QueryBuilders.queryString("msg:foo"), null, 0, 10);
             final SearchHits hits = searchResponse.getHits();

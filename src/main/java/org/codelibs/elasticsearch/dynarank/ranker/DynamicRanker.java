@@ -186,6 +186,10 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     .sourceAsMap(source);
             final int size = getInt(sourceAsMap.get("size"), 10);
             final int from = getInt(sourceAsMap.get("from"), 0);
+            if (size < 0 || from < 0) {
+                return null;
+            }
+
             if (from >= scriptInfo.getReorderSize()) {
                 return null;
             }
@@ -388,14 +392,18 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             final InternalSearchHit[] targets = onReorder(searchHits,
                     scriptInfo);
             if (from >= targets.length) {
-                throw new DynamicRankingException("Invalid argument: " + from
-                        + " >= " + targets.length);
+                newSearchHits = new InternalSearchHit[0];
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Invalid argument: " + from + " >= "
+                            + targets.length);
+                }
+            } else {
+                int end = from + size;
+                if (end > targets.length) {
+                    end = targets.length;
+                }
+                newSearchHits = Arrays.copyOfRange(targets, from, end);
             }
-            int end = from + size;
-            if (end > targets.length) {
-                end = targets.length;
-            }
-            newSearchHits = Arrays.copyOfRange(targets, from, end);
         } else {
             InternalSearchHit[] targets = Arrays.copyOfRange(searchHits, 0,
                     reorderSize);
