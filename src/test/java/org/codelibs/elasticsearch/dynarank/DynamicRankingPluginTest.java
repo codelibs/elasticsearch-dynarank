@@ -41,6 +41,7 @@ public class DynamicRankingPluginTest {
             public void build(final int number, final Builder settingsBuilder) {
                 settingsBuilder.put("indices.dynarank.cache.clean_interval",
                         "1s");
+				settingsBuilder.put("script.groovy.sandbox.enabled", true);
                 settingsBuilder.put("http.cors.enabled", true);
             }
         }).build(
