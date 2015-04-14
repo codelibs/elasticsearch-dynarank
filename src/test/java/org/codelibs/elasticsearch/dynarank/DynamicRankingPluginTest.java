@@ -41,7 +41,7 @@ public class DynamicRankingPluginTest {
             public void build(final int number, final Builder settingsBuilder) {
                 settingsBuilder.put("indices.dynarank.cache.clean_interval",
                         "1s");
-				settingsBuilder.put("script.groovy.sandbox.enabled", true);
+                settingsBuilder.put("script.groovy.sandbox.enabled", true);
                 settingsBuilder.put("http.cors.enabled", true);
             }
         }).build(
@@ -782,6 +782,90 @@ public class DynamicRankingPluginTest {
             assertEquals("19", hits[9].getSource().get("id"));
         }
 
+    }
+
+    @Test
+    public void diversitySortWithShuffle() throws Exception {
+
+        final String index = "test_index";
+        final String type = "test_type";
+
+        {
+            // create an index
+            final String indexSettings = "{\"index\":{\"analysis\":{\"analyzer\":{"
+                    + "\"minhash_analyzer\":{\"type\":\"custom\",\"tokenizer\":\"standard\",\"filter\":[\"my_minhash\"]}"
+                    + "},\"filter\":{"
+                    + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
+                    + "}}},"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\"min_bucket_size\":1,\"shuffle_seed\":\"1\"}},\"reorder_size\":20}"
+                    + "}";
+            runner.createIndex(index, ImmutableSettings.builder()
+                    .loadFromSource(indexSettings).build());
+            runner.ensureYellow(index);
+
+            // create a mapping
+            final XContentBuilder mappingBuilder = XContentFactory
+                    .jsonBuilder()//
+                    .startObject()//
+                    .startObject(type)//
+                    .startObject("properties")//
+
+                    // id
+                    .startObject("id")//
+                    .field("type", "string")//
+                    .field("index", "not_analyzed")//
+                    .endObject()//
+
+                    // msg
+                    .startObject("msg")//
+                    .field("type", "string")//
+                    .field("copy_to", "minhash_value")//
+                    .endObject()//
+
+                    // order
+                    .startObject("order")//
+                    .field("type", "long")//
+                    .endObject()//
+
+                    // minhash
+                    .startObject("minhash_value")//
+                    .field("type", "minhash")//
+                    .field("minhash_analyzer", "minhash_analyzer")//
+                    .endObject()//
+
+                    .endObject()//
+                    .endObject()//
+                    .endObject();
+            runner.createMapping(index, type, mappingBuilder);
+        }
+
+        if (!runner.indexExists(index)) {
+            fail();
+        }
+
+        // create 200 documents
+        final StringBuilder[] texts = createTexts();
+        for (int i = 1; i <= 200; i++) {
+            // System.out.println(texts[i - 1]);
+            final IndexResponse indexResponse1 =
+                    runner.insert(index, type, String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\"" + texts[(i - 1) % 10].toString()
+                            + "\",\"order\":" + (i - 1) % 10 + "}");
+            assertTrue(indexResponse1.isCreated());
+        }
+        runner.refresh();
+
+        {
+            final SearchResponse response = runner
+                    .client()
+                    .prepareSearch(index)
+                    .setTypes(type)
+                    .setQuery(QueryBuilders.matchAllQuery())
+                    .addSort("order", SortOrder.ASC)
+                    .addFields("_source", "minhash_value").setFrom(20)
+                    .setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(200, searchHits.getTotalHits());
+        }
     }
 
     private StringBuilder[] createTexts() {

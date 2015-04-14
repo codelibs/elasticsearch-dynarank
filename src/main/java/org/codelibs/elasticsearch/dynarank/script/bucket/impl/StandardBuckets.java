@@ -2,10 +2,12 @@ package org.codelibs.elasticsearch.dynarank.script.bucket.impl;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
+import org.codelibs.elasticsearch.dynarank.ranker.RetrySearchException;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
@@ -52,6 +54,7 @@ public class StandardBuckets implements Buckets {
                     Arrays.toString(diversityFields),
                     Arrays.toString(thresholds));
         }
+        int maxNumOfBuckets = 0;
         for (int i = diversityFields.length - 1; i >= 0; i--) {
             final String diversityField = diversityFields[i];
             final float diversityThreshold = diversityThresholds[i];
@@ -80,12 +83,62 @@ public class StandardBuckets implements Buckets {
                             diversityThreshold));
                 }
             }
+            if (bucketList.size() > maxNumOfBuckets) {
+                maxNumOfBuckets = bucketList.size();
+            }
             searchHits = createHits(length, bucketList);
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("searchHits: {}", searchHits.length);
+            logger.debug("searchHits: {}, maxNumOfBuckets: {}", searchHits.length, maxNumOfBuckets);
         }
+
+        Object value = params.get("min_bucket_size");
+        int minBucketSize = 0;
+        if (value instanceof String) {
+            try {
+                minBucketSize = Integer.parseInt(value.toString());
+            } catch (NumberFormatException e) {
+                throw new DynamicRankingException("Invalid value of min_bucket_size: " + value.toString(), e);
+            }
+        } else if (value instanceof Number) {
+            minBucketSize = ((Number) value).intValue();
+        }
+        if (minBucketSize > 0 && minBucketSize >= maxNumOfBuckets) {
+            final Object shuffleSeed =  params.get("shuffle_seed");
+            if (shuffleSeed != null) {
+                throw new RetrySearchException(new RetrySearchException.QueryRewriter() {
+                    @Override
+                    public Map<String, Object> rewrite(Map<String, Object> source) {
+                        Object queryObj = source.remove("query");
+                        if (queryObj == null) {
+                            return null;
+                        }
+                        Object shuffleWeight = params.get("shuffle_weight");
+                        if (shuffleWeight == null) {
+                            shuffleWeight = 1;
+                        }
+
+                        Map<String, Object> randomScoreMap = new HashMap<>(1, 1f);
+                        randomScoreMap.put("seed", shuffleSeed);
+                        Map<String, Object> funcMap = new HashMap<>(2, 1f);
+                        funcMap.put("random_score", randomScoreMap);
+                        funcMap.put("weight", shuffleWeight);
+                        List<Map<String, Object>> funcList = new ArrayList<>(1);
+                        funcList.add(funcMap);
+                        Map<String, Object> funcScoreMap = new HashMap<>(3, 1f);
+                        funcScoreMap.put("query", queryObj);
+                        funcScoreMap.put("functions", funcList);
+                        funcScoreMap.put("boost_mode", "sum");
+                        Map<String, Object> queryMap = new HashMap<>(1, 1f);
+                        queryMap.put("function_score", funcScoreMap);
+                        source.put("query", queryMap);
+                        return source;
+                    }
+                });
+            }
+        }
+
         return searchHits;
     }
 

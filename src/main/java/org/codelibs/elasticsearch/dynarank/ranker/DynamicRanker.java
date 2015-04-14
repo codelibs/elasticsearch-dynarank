@@ -23,6 +23,7 @@ import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.action.support.IndicesOptions;
+import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.cluster.ClusterService;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
@@ -76,6 +77,8 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
 
     public static final String INDICES_DYNARANK_CACHE_CLEAN_INTERVAL = "indices.dynarank.cache.clean_interval";
 
+    private static final String DYNARANK_RERANK_ENABLE = "_rerank";
+
     private ESLogger logger = ESLoggerFactory.getLogger("script.dynarank.sort");
 
     private ClusterService clusterService;
@@ -92,12 +95,16 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
 
     private Reaper reaper;
 
+    private Client client;
+
     @Inject
     public DynamicRanker(final Settings settings,
+            final Client client,
             final ClusterService clusterService,
             final ScriptService scriptService, final ThreadPool threadPool,
             final ActionFilters filters) {
         super(settings);
+        this.client = client;
         this.clusterService = clusterService;
         this.scriptService = scriptService;
         this.threadPool = threadPool;
@@ -158,7 +165,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             return null;
         }
 
-        final Object isRerank = request.getHeader("_rerank");
+        final Object isRerank = request.getHeader(DYNARANK_RERANK_ENABLE);
         if (isRerank instanceof Boolean && !((Boolean) isRerank).booleanValue()) {
             return null;
         }
@@ -211,8 +218,37 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             builder.map(sourceAsMap);
             request.source(builder.bytes(), true);
 
-            return createSearchResponseListener(listener, from, size,
-                    scriptInfo.getReorderSize(), startTime, scriptInfo);
+            final ActionListener<SearchResponse> searchResponseListener =
+                    createSearchResponseListener(listener, from, size, scriptInfo.getReorderSize(), startTime, scriptInfo);
+            return new ActionListener<SearchResponse>() {
+                @Override
+                public void onResponse(SearchResponse response) {
+                    try {
+                        searchResponseListener.onResponse(response);
+                    } catch (RetrySearchException e) {
+                        Map<String, Object> newSourceAsMap = e.rewrite(sourceAsMap);
+                        if (newSourceAsMap == null) {
+                            throw new DynamicRankingException("Failed to rewrite source: " + sourceAsMap);
+                        }
+                        newSourceAsMap.put("size", size);
+                        newSourceAsMap.put("from", from);
+                        try {
+                            final XContentBuilder builder = XContentFactory.contentBuilder(Requests.CONTENT_TYPE);
+                            builder.map(newSourceAsMap);
+                            request.source(builder.bytes(), true);
+                            request.putHeader(DYNARANK_RERANK_ENABLE, Boolean.FALSE);
+                            client.search(request, listener);
+                        } catch (IOException ioe) {
+                            throw new DynamicRankingException("Failed to parse a new source.", ioe);
+                        }
+                    }
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    searchResponseListener.onFailure(t);
+                }
+            };
         } catch (final IOException e) {
             throw new DynamicRankingException("Failed to parse a source.", e);
         }
@@ -363,6 +399,8 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                                 tookInMillis - response.getTookInMillis());
                     }
 
+                } catch (final RetrySearchException e) {
+                    throw e;
                 } catch (final Exception e) {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Failed to parse a search response.", e);
@@ -425,7 +463,6 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             final ScriptInfo scriptInfo) {
         final Map<String, Object> vars = new HashMap<String, Object>();
         final InternalSearchHit[] hits = searchHits;
-        vars.clear();
         vars.put("searchHits", hits);
         vars.putAll(scriptInfo.getSettings());
         final CompiledScript compiledScript = scriptService.compile(
