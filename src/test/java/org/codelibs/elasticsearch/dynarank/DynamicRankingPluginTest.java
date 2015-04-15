@@ -797,7 +797,7 @@ public class DynamicRankingPluginTest {
                     + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
                     + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\"min_bucket_size\":1,\"shuffle_seed\":\"1\"}},\"reorder_size\":20}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\"min_bucket_size\":1,\"shuffle_seed\":\"1\"}},\"reorder_size\":10}"
                     + "}";
             runner.createIndex(index, ImmutableSettings.builder()
                     .loadFromSource(indexSettings).build());
@@ -846,10 +846,9 @@ public class DynamicRankingPluginTest {
         // create 200 documents
         final StringBuilder[] texts = createTexts();
         for (int i = 1; i <= 200; i++) {
-            // System.out.println(texts[i - 1]);
             final IndexResponse indexResponse1 =
                     runner.insert(index, type, String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\"" + texts[(i - 1) % 10].toString()
-                            + "\",\"order\":" + (i - 1) % 10 + "}");
+                            + "\",\"order\":" + i + "}");
             assertTrue(indexResponse1.isCreated());
         }
         runner.refresh();
@@ -859,12 +858,64 @@ public class DynamicRankingPluginTest {
                     .client()
                     .prepareSearch(index)
                     .setTypes(type)
-                    .setQuery(QueryBuilders.matchAllQuery())
+                    .setQuery(QueryBuilders.termQuery("msg", "aaa0"))
+                    .addFields("_source", "minhash_value")
+                    .addSort("_score",SortOrder.DESC)
                     .addSort("order", SortOrder.ASC)
-                    .addFields("_source", "minhash_value").setFrom(20)
-                    .setSize(10).execute().actionGet();
+                    .setFrom(0).setSize(5).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(200, searchHits.getTotalHits());
+            assertEquals(20, searchHits.getTotalHits());
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("21", hits[0].getSource().get("id"));
+            assertEquals("11", hits[1].getSource().get("id"));
+            assertEquals("151", hits[2].getSource().get("id"));
+            assertEquals("1", hits[3].getSource().get("id"));
+            assertEquals("51", hits[4].getSource().get("id"));
+        }
+
+        {
+            final SearchResponse response = runner
+                    .client()
+                    .prepareSearch(index)
+                    .setTypes(type)
+                    .setQuery(QueryBuilders.termQuery("msg", "aaa0"))
+                    .addFields("_source", "minhash_value")
+                    .addSort("_score",SortOrder.DESC)
+                    .addSort("order", SortOrder.ASC)
+                    .setFrom(5).setSize(5).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(20, searchHits.getTotalHits());
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("111", hits[0].getSource().get("id"));
+            assertEquals("71", hits[1].getSource().get("id"));
+            assertEquals("131", hits[2].getSource().get("id"));
+            assertEquals("191", hits[3].getSource().get("id"));
+            assertEquals("141", hits[4].getSource().get("id"));
+        }
+
+        {
+            final SearchResponse response = runner
+                    .client()
+                    .prepareSearch(index)
+                    .setTypes(type)
+                    .setQuery(QueryBuilders.termQuery("msg", "aaa0"))
+                    .addFields("_source", "minhash_value")
+                    .addSort("_score",SortOrder.DESC)
+                    .addSort("order", SortOrder.ASC)
+                    .setFrom(10).setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(20, searchHits.getTotalHits());
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("121", hits[0].getSource().get("id"));
+            assertEquals("131", hits[1].getSource().get("id"));
+            assertEquals("141", hits[2].getSource().get("id"));
+            assertEquals("171", hits[3].getSource().get("id"));
+            assertEquals("181", hits[4].getSource().get("id"));
+            assertEquals("191", hits[5].getSource().get("id"));
+            assertEquals("31", hits[6].getSource().get("id"));
+            assertEquals("81", hits[7].getSource().get("id"));
+            assertEquals("101", hits[8].getSource().get("id"));
+            assertEquals("151", hits[9].getSource().get("id"));
         }
     }
 
