@@ -797,7 +797,7 @@ public class DynamicRankingPluginTest {
                     + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
                     + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\"min_bucket_size\":1,\"shuffle_seed\":\"1\"}},\"reorder_size\":10}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\"min_bucket_size\":\"1\",\"shuffle_seed\":\"1\"}},\"reorder_size\":10}"
                     + "}";
             runner.createIndex(index, ImmutableSettings.builder()
                     .loadFromSource(indexSettings).build());

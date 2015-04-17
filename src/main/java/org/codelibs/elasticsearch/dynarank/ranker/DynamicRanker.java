@@ -232,6 +232,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                         }
                         newSourceAsMap.put("size", size);
                         newSourceAsMap.put("from", from);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Original Query: \n{}\nNew Query: \n{}", sourceAsMap, newSourceAsMap);
+                        }
                         try {
                             final XContentBuilder builder = XContentFactory.contentBuilder(Requests.CONTENT_TYPE);
                             builder.map(newSourceAsMap);

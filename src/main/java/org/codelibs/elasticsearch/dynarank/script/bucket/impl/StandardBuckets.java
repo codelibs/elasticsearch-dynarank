@@ -89,10 +89,6 @@ public class StandardBuckets implements Buckets {
             searchHits = createHits(length, bucketList);
         }
 
-        if (logger.isDebugEnabled()) {
-            logger.debug("searchHits: {}, maxNumOfBuckets: {}", searchHits.length, maxNumOfBuckets);
-        }
-
         Object value = params.get("min_bucket_size");
         int minBucketSize = 0;
         if (value instanceof String) {
@@ -104,9 +100,17 @@ public class StandardBuckets implements Buckets {
         } else if (value instanceof Number) {
             minBucketSize = ((Number) value).intValue();
         }
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("searchHits: {}, maxNumOfBuckets: {}, minBucketSize: {}", searchHits.length, maxNumOfBuckets, minBucketSize);
+        }
+
         if (minBucketSize > 0 && minBucketSize >= maxNumOfBuckets) {
             final Object shuffleSeed =  params.get("shuffle_seed");
             if (shuffleSeed != null) {
+                if (logger.isDebugEnabled()) {
+                    logger.debug("minBucketSize: {}", shuffleSeed);
+                }
                 throw new RetrySearchException(new RetrySearchException.QueryRewriter() {
                     @Override
                     public Map<String, Object> rewrite(Map<String, Object> source) {
