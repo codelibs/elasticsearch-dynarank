@@ -785,8 +785,16 @@ public class DynamicRankingPluginTest {
     }
 
     @Test
-    public void diversitySortWithShuffle() throws Exception {
+    public void diversitySortWithShuffleMin() throws Exception {
+        diversitySortWithShuffle("min_bucket_threshold");
+    }
 
+    @Test
+    public void diversitySortWithShuffleMax() throws Exception {
+        diversitySortWithShuffle("max_bucket_threshold");
+    }
+
+    private void diversitySortWithShuffle(String name) throws Exception {
         final String index = "test_index";
         final String type = "test_type";
 
@@ -797,7 +805,9 @@ public class DynamicRankingPluginTest {
                     + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
                     + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\"min_bucket_size\":\"1\",\"shuffle_seed\":\"1\"}},\"reorder_size\":10}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\""
+                    + name
+                    + "\":\"1\",\"shuffle_seed\":\"1\"}},\"reorder_size\":10}"
                     + "}";
             runner.createIndex(index, ImmutableSettings.builder()
                     .loadFromSource(indexSettings).build());

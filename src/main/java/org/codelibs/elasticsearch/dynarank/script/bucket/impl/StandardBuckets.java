@@ -55,6 +55,7 @@ public class StandardBuckets implements Buckets {
                     Arrays.toString(thresholds));
         }
         int maxNumOfBuckets = 0;
+        int minNumOfBuckets = Integer.MAX_VALUE;
         for (int i = diversityFields.length - 1; i >= 0; i--) {
             final String diversityField = diversityFields[i];
             final float diversityThreshold = diversityThresholds[i];
@@ -86,26 +87,46 @@ public class StandardBuckets implements Buckets {
             if (bucketList.size() > maxNumOfBuckets) {
                 maxNumOfBuckets = bucketList.size();
             }
+            if (bucketList.size() < minNumOfBuckets) {
+                minNumOfBuckets = bucketList.size();
+            }
             searchHits = createHits(length, bucketList);
         }
 
-        Object value = params.get("min_bucket_size");
-        int minBucketSize = 0;
-        if (value instanceof String) {
+        int minBucketThreshold = 0;
+        int maxBucketThreshold = 0;
+
+        Object minBucketThresholdStr = params.get("min_bucket_threshold");
+        if (minBucketThresholdStr instanceof String) {
             try {
-                minBucketSize = Integer.parseInt(value.toString());
+                minBucketThreshold  = Integer.parseInt(minBucketThresholdStr.toString());
             } catch (NumberFormatException e) {
-                throw new DynamicRankingException("Invalid value of min_bucket_size: " + value.toString(), e);
+                throw new DynamicRankingException("Invalid value of min_bucket_threshold: " + minBucketThresholdStr.toString(), e);
             }
-        } else if (value instanceof Number) {
-            minBucketSize = ((Number) value).intValue();
+        } else if (minBucketThresholdStr instanceof Number) {
+            minBucketThreshold = ((Number) minBucketThresholdStr).intValue();
+        }
+
+        Object maxBucketThresholdStr = params.get("max_bucket_threshold");
+        if (maxBucketThresholdStr instanceof String) {
+            try {
+                maxBucketThreshold  = Integer.parseInt(maxBucketThresholdStr.toString());
+            } catch (NumberFormatException e) {
+                throw new DynamicRankingException("Invalid value of max_bucket_threshold: " + maxBucketThresholdStr.toString(), e);
+            }
+        } else if (maxBucketThresholdStr instanceof Number) {
+            maxBucketThreshold = ((Number) maxBucketThresholdStr).intValue();
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("searchHits: {}, maxNumOfBuckets: {}, minBucketSize: {}", searchHits.length, maxNumOfBuckets, minBucketSize);
+            logger.debug(
+                    "searchHits: {}, minNumOfBuckets: {}, maxNumOfBuckets: {}, minBucketSize: {}, maxBucketThreshold: {}",
+                    searchHits.length, minNumOfBuckets, maxNumOfBuckets,
+                    minBucketThreshold, maxBucketThreshold);
         }
 
-        if (minBucketSize > 0 && minBucketSize >= maxNumOfBuckets) {
+        if ((minBucketThreshold > 0 && minBucketThreshold >= minNumOfBuckets)
+                || (maxBucketThreshold > 0 && maxBucketThreshold >= maxNumOfBuckets)) {
             final Object shuffleSeed =  params.get("shuffle_seed");
             if (shuffleSeed != null) {
                 if (logger.isDebugEnabled()) {
