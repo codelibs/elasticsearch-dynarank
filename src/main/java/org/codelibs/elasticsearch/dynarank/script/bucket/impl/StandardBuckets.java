@@ -143,6 +143,7 @@ public class StandardBuckets implements Buckets {
                         if (shuffleWeight == null) {
                             shuffleWeight = 1;
                         }
+                        Object shuffleBoostMode = params.getOrDefault("shuffle_boost_mode", "sum");
 
                         Map<String, Object> randomScoreMap = new HashMap<>(1, 1f);
                         randomScoreMap.put("seed", shuffleSeed);
@@ -154,7 +155,7 @@ public class StandardBuckets implements Buckets {
                         Map<String, Object> funcScoreMap = new HashMap<>(3, 1f);
                         funcScoreMap.put("query", queryObj);
                         funcScoreMap.put("functions", funcList);
-                        funcScoreMap.put("boost_mode", "sum");
+                        funcScoreMap.put("boost_mode", shuffleBoostMode.toString());
                         Map<String, Object> queryMap = new HashMap<>(1, 1f);
                         queryMap.put("function_score", funcScoreMap);
                         source.put("query", queryMap);
