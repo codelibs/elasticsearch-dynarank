@@ -165,6 +165,10 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             return null;
         }
 
+        if (request.scroll() != null) {
+            return null;
+        }
+
         final Object isRerank = request.getHeader(DYNARANK_RERANK_ENABLE);
         if (isRerank instanceof Boolean && !((Boolean) isRerank).booleanValue()) {
             return null;

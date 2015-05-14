@@ -975,6 +975,45 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index)
                     .setQuery(QueryBuilders.matchAllQuery())
                     .addField("counter").addSort("counter", SortOrder.ASC)
+                    .setScroll("1m").execute().actionGet();
+            final SearchHits hits = searchResponse.getHits();
+            assertEquals(1000, hits.getTotalHits());
+            assertEquals(10, hits.hits().length);
+            assertEquals("1", hits.hits()[0].id());
+            assertEquals("10", hits.hits()[9].id());
+        }
+
+    }
+
+    @Test
+    public void skipReorder_scrollSearch() throws Exception {
+
+        assertThat(1, is(runner.getNodeSize()));
+        final Client client = runner.client();
+
+        final String index = "sample";
+        final String type = "data";
+        runner.createIndex(
+                index,
+                ImmutableSettings
+                        .builder()
+                        .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, 100)
+                        .put(DynamicRanker.INDEX_DYNARANK_SCRIPT,
+                                "searchHits.sort {s1, s2 -> s2.field('counter').value() - s1.field('counter').value()} as org.elasticsearch.search.internal.InternalSearchHit[]")
+                        .put(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS + "foo",
+                                "bar").build());
+
+        for (int i = 1; i <= 1000; i++) {
+            final IndexResponse indexResponse1 = runner.insert(index, type,
+                    String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\"test "
+                            + i + "\",\"counter\":" + i + "}");
+            assertTrue(indexResponse1.isCreated());
+        }
+
+        {
+            final SearchResponse searchResponse = client.prepareSearch(index)
+                    .setQuery(QueryBuilders.matchAllQuery())
+                    .addField("counter").addSort("counter", SortOrder.ASC)
                     .putHeader("_rerank", false).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
