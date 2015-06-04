@@ -243,6 +243,11 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                             final XContentBuilder builder = XContentFactory.contentBuilder(Requests.CONTENT_TYPE);
                             builder.map(newSourceAsMap);
                             request.source(builder.bytes(), true);
+                            for(String name:request.getHeaders()){
+                                if (name.startsWith("filter.codelibs.")) {
+                                    request.putHeader(name, Boolean.FALSE);
+                                }
+                            }
                             request.putHeader(DYNARANK_RERANK_ENABLE, Boolean.FALSE);
                             client.search(request, listener);
                         } catch (IOException ioe) {

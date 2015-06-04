@@ -7,21 +7,20 @@ import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
 
-public class SearchActionFilter extends AbstractComponent implements
-        ActionFilter {
+public class SearchActionFilter extends AbstractComponent
+        implements ActionFilter {
+
+    private static final String SEARCH_REQUEST_INVOKED = "filter.codelibs.dynarank.Invoked";
 
     private int order;
 
     private DynamicRanker dynamicRanker;
-
-    private ThreadLocal<SearchType> currentSearchType = new ThreadLocal<>();
 
     @Inject
     public SearchActionFilter(final Settings settings) {
@@ -46,20 +45,16 @@ public class SearchActionFilter extends AbstractComponent implements
         }
 
         final SearchRequest searchRequest = (SearchRequest) request;
-        final SearchType searchType = currentSearchType.get();
-        if (searchType == null) {
-            try {
-                currentSearchType.set(searchRequest.searchType());
-                chain.proceed(action, request, listener);
-            } finally {
-                currentSearchType.remove();
-            }
-        } else {
+        final Boolean invoked = searchRequest.getHeader(SEARCH_REQUEST_INVOKED);
+        if (invoked != null && invoked.booleanValue()) {
             @SuppressWarnings("unchecked")
             final ActionListener<SearchResponse> wrappedListener = dynamicRanker
                     .wrapActionListener(action, searchRequest, listener);
-            chain.proceed(action, request, wrappedListener == null ? listener
-                    : wrappedListener);
+            chain.proceed(action, request,
+                    wrappedListener == null ? listener : wrappedListener);
+        } else {
+            searchRequest.putHeader(SEARCH_REQUEST_INVOKED, Boolean.TRUE);
+            chain.proceed(action, request, listener);
         }
     }
 
