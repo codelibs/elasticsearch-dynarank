@@ -1,4 +1,4 @@
-Elasticsearch DynaRank Pugin
+Elasticsearch DynaRank Plugin
 =======================
 
 ## Overview
