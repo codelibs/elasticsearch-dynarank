@@ -8,6 +8,8 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.UUID;
+
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker.ScriptInfo;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
@@ -44,9 +46,8 @@ public class DynamicRankingPluginTest {
                 settingsBuilder.put("script.groovy.sandbox.enabled", true);
                 settingsBuilder.put("http.cors.enabled", true);
             }
-        }).build(
-                newConfigs().clusterName("es-dynarank").numOfNode(1)
-                        .ramIndexStore());
+        }).build(newConfigs().numOfNode(1).ramIndexStore()
+                .clusterName(UUID.randomUUID().toString()));
         runner.ensureGreen();
     }
 
