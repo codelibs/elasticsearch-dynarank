@@ -220,7 +220,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             final XContentBuilder builder = XContentFactory
                     .contentBuilder(Requests.CONTENT_TYPE);
             builder.map(sourceAsMap);
-            request.source(builder.bytes(), true);
+            request.source(builder.bytes());
 
             final ActionListener<SearchResponse> searchResponseListener =
                     createSearchResponseListener(listener, from, size, scriptInfo.getReorderSize(), startTime, scriptInfo);
@@ -242,7 +242,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                         try {
                             final XContentBuilder builder = XContentFactory.contentBuilder(Requests.CONTENT_TYPE);
                             builder.map(newSourceAsMap);
-                            request.source(builder.bytes(), true);
+                            request.source(builder.bytes());
                             for(String name:request.getHeaders()){
                                 if (name.startsWith("filter.codelibs.")) {
                                     request.putHeader(name, Boolean.FALSE);
