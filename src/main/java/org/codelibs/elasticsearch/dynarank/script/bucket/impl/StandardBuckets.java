@@ -12,6 +12,7 @@ import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.elasticsearch.common.bytes.BytesArray;
+import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.search.SearchHitField;
@@ -177,12 +178,14 @@ public class StandardBuckets implements Buckets {
             return this;
         }
         final Object object = field.getValue();
-        if (object instanceof BytesArray) {
-            return ((BytesArray) object).toBytes();
+        if (object instanceof BytesReference) {
+            return ((BytesReference) object).toBytes();
         } else if (object instanceof String) {
             return object;
         } else if (object instanceof Number) {
             return object;
+        } else if (object instanceof BytesArray) {
+            return ((BytesArray) object).toBytes();
         }
         return null;
     }

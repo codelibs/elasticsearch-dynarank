@@ -15,23 +15,21 @@ import java.util.concurrent.TimeUnit;
 import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
 import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilters;
-import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.Requests;
 import org.elasticsearch.cluster.ClusterService;
+import org.elasticsearch.cluster.metadata.AliasOrIndex;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MetaData;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
-import org.elasticsearch.common.io.stream.BytesStreamInput;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
@@ -40,17 +38,20 @@ import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.script.CompiledScript;
+import org.elasticsearch.script.Script;
+import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.script.ScriptService.ScriptType;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.aggregations.InternalAggregations;
-import org.elasticsearch.search.facet.InternalFacets;
 import org.elasticsearch.search.internal.InternalSearchHit;
 import org.elasticsearch.search.internal.InternalSearchHits;
 import org.elasticsearch.search.internal.InternalSearchResponse;
+import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.lookup.SourceLookup;
 import org.elasticsearch.search.suggest.Suggest;
 import org.elasticsearch.threadpool.ThreadPool;
+import org.elasticsearch.transport.netty.ChannelBufferStreamInput;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -273,19 +274,18 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                 public ScriptInfo call() throws Exception {
                     final MetaData metaData = clusterService.state()
                             .getMetaData();
-                    String[] concreteIndices = metaData.concreteIndices(
-                            IndicesOptions.strictExpandOpenAndForbidClosed(),
-                            index);
+                    AliasOrIndex aliasOrIndex = metaData
+                            .getAliasAndIndexLookup().get(index);
+                    if (aliasOrIndex == null) {
+                        return ScriptInfo.NO_SCRIPT_INFO;
+                    }
                     Settings indexSettings = null;
-                    for (String concreteIndex : concreteIndices) {
-                        IndexMetaData indexMD = metaData.index(concreteIndex);
-                        if (indexMD != null) {
-                            final Settings scriptSettings = indexMD.settings();
-                            final String script = scriptSettings
-                                    .get(INDEX_DYNARANK_SCRIPT);
-                            if (script != null && script.length() > 0) {
-                                indexSettings = scriptSettings;
-                            }
+                    for (IndexMetaData indexMD : aliasOrIndex.getIndices()) {
+                        final Settings scriptSettings = indexMD.getSettings();
+                        final String script = scriptSettings
+                                .get(INDEX_DYNARANK_SCRIPT);
+                        if (script != null && script.length() > 0) {
+                            indexSettings = scriptSettings;
                         }
                     }
 
@@ -335,8 +335,8 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading headers...");
                     }
-                    final BytesStreamInput in = new BytesStreamInput(
-                            out.bytes());
+                    final ChannelBufferStreamInput in = new ChannelBufferStreamInput(
+                            out.bytes().toChannelBuffer());
                     Map<String, Object> headers = null;
                     if (in.readBoolean()) {
                         headers = in.readMap();
@@ -347,10 +347,6 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     final InternalSearchHits hits = readSearchHits(in);
                     final InternalSearchHits newHits = doReorder(hits, from,
                             size, reorderSize, scriptInfo);
-                    InternalFacets facets = null;
-                    if (in.readBoolean()) {
-                        facets = InternalFacets.readFacets(in);
-                    }
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading aggregations...");
                     }
@@ -368,21 +364,19 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                                 in);
                     }
                     final boolean timedOut = in.readBoolean();
-                    Boolean terminatedEarly = null;
-                    if (in.getVersion().onOrAfter(Version.V_1_4_0_Beta1)) {
-                        terminatedEarly = in.readOptionalBoolean();
-                    }
+                    Boolean terminatedEarly = in.readOptionalBoolean();
+
                     final InternalSearchResponse internalResponse = new InternalSearchResponse(
-                            newHits, facets, aggregations, suggest, timedOut,
+                            newHits, aggregations, suggest, timedOut,
                             terminatedEarly);
                     final int totalShards = in.readVInt();
                     final int successfulShards = in.readVInt();
-                    final int size = in.readVInt();
+                    final int shardFailureSize = in.readVInt();
                     ShardSearchFailure[] shardFailures;
-                    if (size == 0) {
+                    if (shardFailureSize == 0) {
                         shardFailures = ShardSearchFailure.EMPTY_ARRAY;
                     } else {
-                        shardFailures = new ShardSearchFailure[size];
+                        shardFailures = new ShardSearchFailure[shardFailureSize];
                         for (int i = 0; i < shardFailures.length; i++) {
                             shardFailures[i] = readShardSearchFailure(in);
                         }
@@ -478,8 +472,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         vars.put("searchHits", hits);
         vars.putAll(scriptInfo.getSettings());
         final CompiledScript compiledScript = scriptService.compile(
-                scriptInfo.getLang(), scriptInfo.getScript(),
-                scriptInfo.getScriptType());
+                new Script(scriptInfo.getScript(), scriptInfo.getScriptType(),
+                        scriptInfo.getLang(), new HashMap<String, Object>()),
+                ScriptContext.Standard.SEARCH, SearchContext.current());
         return (InternalSearchHit[]) scriptService.executable(compiledScript,
                 vars).run();
     }
@@ -590,7 +585,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                         continue;
                     }
 
-                    final Settings indexSettings = indexMD.settings();
+                    final Settings indexSettings = indexMD.getSettings();
                     final String script = indexSettings
                             .get(INDEX_DYNARANK_SCRIPT);
                     if (script == null || script.length() == 0) {

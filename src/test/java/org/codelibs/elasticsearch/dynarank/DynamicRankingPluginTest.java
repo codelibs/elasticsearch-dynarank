@@ -8,8 +8,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.util.UUID;
-
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker.ScriptInfo;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
@@ -18,8 +16,8 @@ import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.ImmutableSettings;
-import org.elasticsearch.common.settings.ImmutableSettings.Builder;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
@@ -35,19 +33,30 @@ import org.junit.Test;
 public class DynamicRankingPluginTest {
     ElasticsearchClusterRunner runner;
 
+    private String clusterName;
+
     @Before
     public void setUp() throws Exception {
+        clusterName = "es-dynarank-" + System.currentTimeMillis();
         runner = new ElasticsearchClusterRunner();
         runner.onBuild(new ElasticsearchClusterRunner.Builder() {
             @Override
             public void build(final int number, final Builder settingsBuilder) {
                 settingsBuilder.put("indices.dynarank.cache.clean_interval",
                         "1s");
-                settingsBuilder.put("script.groovy.sandbox.enabled", true);
+                settingsBuilder.put("script.search", "on");
                 settingsBuilder.put("http.cors.enabled", true);
+                settingsBuilder.put("http.cors.allow-origin", "*");
+                settingsBuilder.put("index.number_of_shards", 3);
+                settingsBuilder.put("index.number_of_replicas", 0);
+                settingsBuilder.putArray("discovery.zen.ping.unicast.hosts",
+                        "localhost:9301-9310");
+                settingsBuilder.put("plugin.types",
+                        "org.codelibs.elasticsearch.dynarank.DynamicRankingPlugin,org.codelibs.elasticsearch.minhash.MinHashPlugin");
+                settingsBuilder
+                        .put("index.unassigned.node_left.delayed_timeout", "0");
             }
-        }).build(newConfigs().numOfNode(1).ramIndexStore()
-                .clusterName(UUID.randomUUID().toString()));
+        }).build(newConfigs().numOfNode(1).clusterName(clusterName));
         runner.ensureGreen();
     }
 
@@ -69,7 +78,7 @@ public class DynamicRankingPluginTest {
         CreateIndexResponse createIndexResponse = runner
                 .createIndex(
                         index,
-                        ImmutableSettings
+                        Settings
                                 .builder()
                                 .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE,
                                         100)
@@ -141,7 +150,7 @@ public class DynamicRankingPluginTest {
         CreateIndexResponse createIndexResponse = runner
                 .createIndex(
                         index,
-                        ImmutableSettings
+                        Settings
                                 .builder()
                                 .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE,
                                         100)
@@ -359,7 +368,7 @@ public class DynamicRankingPluginTest {
 
         {
             final SearchResponse searchResponse = runner.search(index, type,
-                    QueryBuilders.queryString("msg:foo"), null, 0, 10);
+                    QueryBuilders.queryStringQuery("msg:foo"), null, 0, 10);
             final SearchHits hits = searchResponse.getHits();
             assertEquals(0, hits.getTotalHits());
         }
@@ -392,7 +401,7 @@ public class DynamicRankingPluginTest {
                     + "}}},"
                     + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1]}},\"reorder_size\":20}"
                     + "}";
-            runner.createIndex(index, ImmutableSettings.builder()
+            runner.createIndex(index, Settings.builder()
                     .loadFromSource(indexSettings).build());
             runner.ensureYellow(index);
 
@@ -532,7 +541,7 @@ public class DynamicRankingPluginTest {
                     + "}}},"
                     + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95]}},\"reorder_size\":20}"
                     + "}";
-            runner.createIndex(index, ImmutableSettings.builder()
+            runner.createIndex(index, Settings.builder()
                     .loadFromSource(indexSettings).build());
             runner.ensureYellow(index);
 
@@ -810,7 +819,7 @@ public class DynamicRankingPluginTest {
                     + name
                     + "\":\"1\",\"shuffle_seed\":\"1\"}},\"reorder_size\":10}"
                     + "}";
-            runner.createIndex(index, ImmutableSettings.builder()
+            runner.createIndex(index, Settings.builder()
                     .loadFromSource(indexSettings).build());
             runner.ensureYellow(index);
 
@@ -877,11 +886,11 @@ public class DynamicRankingPluginTest {
             final SearchHits searchHits = response.getHits();
             assertEquals(20, searchHits.getTotalHits());
             final SearchHit[] hits = searchHits.getHits();
-            assertEquals("21", hits[0].getSource().get("id"));
-            assertEquals("11", hits[1].getSource().get("id"));
+            assertEquals("11", hits[0].getSource().get("id"));
+            assertEquals("21", hits[1].getSource().get("id"));
             assertEquals("151", hits[2].getSource().get("id"));
-            assertEquals("1", hits[3].getSource().get("id"));
-            assertEquals("51", hits[4].getSource().get("id"));
+            assertEquals("181", hits[3].getSource().get("id"));
+            assertEquals("131", hits[4].getSource().get("id"));
         }
 
         {
@@ -897,10 +906,10 @@ public class DynamicRankingPluginTest {
             final SearchHits searchHits = response.getHits();
             assertEquals(20, searchHits.getTotalHits());
             final SearchHit[] hits = searchHits.getHits();
-            assertEquals("111", hits[0].getSource().get("id"));
-            assertEquals("71", hits[1].getSource().get("id"));
-            assertEquals("131", hits[2].getSource().get("id"));
-            assertEquals("191", hits[3].getSource().get("id"));
+            assertEquals("1", hits[0].getSource().get("id"));
+            assertEquals("41", hits[1].getSource().get("id"));
+            assertEquals("111", hits[2].getSource().get("id"));
+            assertEquals("31", hits[3].getSource().get("id"));
             assertEquals("141", hits[4].getSource().get("id"));
         }
 
@@ -917,16 +926,16 @@ public class DynamicRankingPluginTest {
             final SearchHits searchHits = response.getHits();
             assertEquals(20, searchHits.getTotalHits());
             final SearchHit[] hits = searchHits.getHits();
-            assertEquals("121", hits[0].getSource().get("id"));
-            assertEquals("131", hits[1].getSource().get("id"));
-            assertEquals("141", hits[2].getSource().get("id"));
-            assertEquals("171", hits[3].getSource().get("id"));
-            assertEquals("181", hits[4].getSource().get("id"));
-            assertEquals("191", hits[5].getSource().get("id"));
-            assertEquals("31", hits[6].getSource().get("id"));
-            assertEquals("81", hits[7].getSource().get("id"));
-            assertEquals("101", hits[8].getSource().get("id"));
-            assertEquals("151", hits[9].getSource().get("id"));
+            assertEquals("181", hits[0].getSource().get("id"));
+            assertEquals("71", hits[1].getSource().get("id"));
+            assertEquals("81", hits[2].getSource().get("id"));
+            assertEquals("111", hits[3].getSource().get("id"));
+            assertEquals("121", hits[4].getSource().get("id"));
+            assertEquals("131", hits[5].getSource().get("id"));
+            assertEquals("141", hits[6].getSource().get("id"));
+            assertEquals("151", hits[7].getSource().get("id"));
+            assertEquals("161", hits[8].getSource().get("id"));
+            assertEquals("171", hits[9].getSource().get("id"));
         }
     }
 
@@ -957,7 +966,7 @@ public class DynamicRankingPluginTest {
         final String type = "data";
         runner.createIndex(
                 index,
-                ImmutableSettings
+                Settings
                         .builder()
                         .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, 100)
                         .put(DynamicRanker.INDEX_DYNARANK_SCRIPT,
@@ -996,7 +1005,7 @@ public class DynamicRankingPluginTest {
         final String type = "data";
         runner.createIndex(
                 index,
-                ImmutableSettings
+                Settings
                         .builder()
                         .put(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, 100)
                         .put(DynamicRanker.INDEX_DYNARANK_SCRIPT,

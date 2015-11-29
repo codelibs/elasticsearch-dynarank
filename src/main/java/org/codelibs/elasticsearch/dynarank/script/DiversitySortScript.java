@@ -9,7 +9,6 @@ import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.codelibs.elasticsearch.dynarank.script.bucket.impl.StandardBucketFactory;
 import org.elasticsearch.common.Nullable;
-import org.elasticsearch.common.collect.ImmutableMap;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.ESLoggerFactory;
@@ -42,7 +41,7 @@ public class DiversitySortScript extends AbstractExecutableScript {
             bucketFactories = new HashMap<>();
             bucketFactories.put(STANDARD, new StandardBucketFactory(settings));
 
-            final ImmutableMap<String, String> bucketFactorySettings = bucketSettings
+            final Map<String, String> bucketFactorySettings = bucketSettings
                     .getAsMap();
             for (final Map.Entry<String, String> entry : bucketFactorySettings
                     .entrySet()) {
@@ -67,6 +66,11 @@ public class DiversitySortScript extends AbstractExecutableScript {
         public ExecutableScript newScript(
                 @Nullable final Map<String, Object> params) {
             return new DiversitySortScript(params, bucketFactories);
+        }
+
+        @Override
+        public boolean needsScores() {
+            return false;
         }
     }
 

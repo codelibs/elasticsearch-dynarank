@@ -1,5 +1,6 @@
 package org.codelibs.elasticsearch.dynarank;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
@@ -7,18 +8,20 @@ import org.codelibs.elasticsearch.dynarank.module.DynamicRankerModule;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
 import org.codelibs.elasticsearch.dynarank.script.DiversitySortScript;
 import org.elasticsearch.action.ActionModule;
-import org.elasticsearch.common.collect.Lists;
+import org.elasticsearch.cluster.ClusterModule;
+import org.elasticsearch.cluster.settings.Validator;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.inject.Module;
-import org.elasticsearch.index.settings.IndexDynamicSettingsModule;
-import org.elasticsearch.plugins.AbstractPlugin;
+import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.script.ScriptModule;
 
-public class DynamicRankingPlugin extends AbstractPlugin {
+import com.google.common.collect.Lists;
+
+public class DynamicRankingPlugin extends Plugin {
 
     @Override
     public String name() {
-        return "DynamicRankingPlugin";
+        return "dynarank";
     }
 
     @Override
@@ -35,25 +38,30 @@ public class DynamicRankingPlugin extends AbstractPlugin {
         module.registerFilter(SearchActionFilter.class);
     }
 
-    public void onModule(final IndexDynamicSettingsModule module) {
-        module.addDynamicSettings("index.dynarank.*");
+    public void onModule(final ClusterModule module) {
+        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT, Validator.EMPTY);
+        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_LANG, Validator.EMPTY);
+        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_TYPE, Validator.EMPTY);
+        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS+"*", Validator.EMPTY);
+        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, Validator.POSITIVE_INTEGER);
+        module.registerClusterDynamicSetting(DynamicRanker.INDICES_DYNARANK_REORDER_SIZE, Validator.POSITIVE_INTEGER);
+        module.registerClusterDynamicSetting(DynamicRanker.INDICES_DYNARANK_CACHE_EXPIRE, Validator.TIME);
+        module.registerClusterDynamicSetting(DynamicRanker.INDICES_DYNARANK_CACHE_CLEAN_INTERVAL, Validator.TIME);
     }
 
     // for Service
     @Override
-    public Collection<Class<? extends Module>> modules() {
-        final Collection<Class<? extends Module>> modules = Lists
-                .newArrayList();
-        modules.add(DynamicRankerModule.class);
+    public Collection<Module> nodeModules() {
+        final Collection<Module> modules = new ArrayList<>();
+        modules.add(new DynamicRankerModule());
         return modules;
     }
 
     // for Service
     @SuppressWarnings("rawtypes")
     @Override
-    public Collection<Class<? extends LifecycleComponent>> services() {
-        final Collection<Class<? extends LifecycleComponent>> services = Lists
-                .newArrayList();
+    public Collection<Class<? extends LifecycleComponent>> nodeServices() {
+        final Collection<Class<? extends LifecycleComponent>> services = new ArrayList<>();
         services.add(DynamicRanker.class);
         return services;
     }
