@@ -55,6 +55,8 @@ import org.elasticsearch.transport.netty.ChannelBufferStreamInput;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import org.elasticsearch.Version;
+import org.elasticsearch.search.profile.InternalProfileShardResults;
 
 public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
 
@@ -365,9 +367,17 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     }
                     final boolean timedOut = in.readBoolean();
                     Boolean terminatedEarly = in.readOptionalBoolean();
+                    InternalProfileShardResults profileResults;
 
+                    if (in.getVersion().onOrAfter(Version.V_2_2_0) 
+                            && in.readBoolean()) {
+                        profileResults = new InternalProfileShardResults(in);
+                    } else {
+                        profileResults = null;
+                    }
+                    
                     final InternalSearchResponse internalResponse = new InternalSearchResponse(
-                            newHits, aggregations, suggest, timedOut,
+                            newHits, aggregations, suggest, profileResults, timedOut,
                             terminatedEarly);
                     final int totalShards = in.readVInt();
                     final int successfulShards = in.readVInt();
