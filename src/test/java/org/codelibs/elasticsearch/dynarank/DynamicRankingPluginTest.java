@@ -44,7 +44,7 @@ public class DynamicRankingPluginTest {
             public void build(final int number, final Builder settingsBuilder) {
                 settingsBuilder.put("indices.dynarank.cache.clean_interval",
                         "1s");
-                settingsBuilder.put("script.search", "on");
+                settingsBuilder.put("script.search", true);
                 settingsBuilder.put("http.cors.enabled", true);
                 settingsBuilder.put("http.cors.allow-origin", "*");
                 settingsBuilder.put("index.number_of_shards", 3);
@@ -52,7 +52,9 @@ public class DynamicRankingPluginTest {
                 settingsBuilder.putArray("discovery.zen.ping.unicast.hosts",
                         "localhost:9301-9310");
                 settingsBuilder.put("plugin.types",
-                        "org.codelibs.elasticsearch.dynarank.DynamicRankingPlugin,org.codelibs.elasticsearch.minhash.MinHashPlugin");
+                        "org.elasticsearch.script.groovy.GroovyPlugin"
+                                + ",org.codelibs.elasticsearch.dynarank.DynamicRankingPlugin"
+                                + ",org.codelibs.elasticsearch.minhash.MinHashPlugin");
                 settingsBuilder
                         .put("index.unassigned.node_left.delayed_timeout", "0");
             }
