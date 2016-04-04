@@ -1,6 +1,8 @@
 package org.codelibs.elasticsearch.dynarank.script;
 
 import java.lang.reflect.Constructor;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -8,6 +10,7 @@ import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.codelibs.elasticsearch.dynarank.script.bucket.impl.StandardBucketFactory;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.Nullable;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.logging.ESLogger;
@@ -47,15 +50,27 @@ public class DiversitySortScript extends AbstractExecutableScript {
                     .entrySet()) {
                 final String name = entry.getKey();
                 try {
-                    @SuppressWarnings("unchecked")
-                    final Class<BucketFactory> clazz = (Class<BucketFactory>) Class
-                            .forName(entry.getValue());
-                    final Class<?>[] types = new Class<?>[] { Settings.class };
-                    final Constructor<BucketFactory> constructor = clazz
-                            .getConstructor(types);
+                    bucketFactories.put(name, AccessController.doPrivileged(
+                            new PrivilegedAction<BucketFactory>() {
+                                @Override
+                                public BucketFactory run() {
+                                    try {
+                                        @SuppressWarnings("unchecked")
+                                        final Class<BucketFactory> clazz = (Class<BucketFactory>) Class
+                                                .forName(entry.getValue());
+                                        final Class<?>[] types = new Class<?>[] {
+                                                Settings.class };
+                                        final Constructor<BucketFactory> constructor = clazz
+                                                .getConstructor(types);
 
-                    final Object[] args = new Object[] { settings };
-                    constructor.newInstance(args);
+                                        final Object[] args = new Object[] {
+                                                settings };
+                                        return constructor.newInstance(args);
+                                    } catch (final Exception e) {
+                                        throw new ElasticsearchException(e);
+                                    }
+                                }
+                            }));
                 } catch (final Exception e) {
                     logger.warn("BucketFactory {} is not found.", e, name);
                 }
