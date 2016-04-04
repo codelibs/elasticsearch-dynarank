@@ -79,6 +79,8 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
 
     private static final String DYNARANK_RERANK_ENABLE = "_rerank";
 
+    private static final String DYNARANK_MIN_TOTAL_HITS = "_minTotalHits";
+
     private ESLogger logger = ESLoggerFactory.getLogger("script.dynarank.sort");
 
     private ClusterService clusterService;
@@ -222,8 +224,9 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
             builder.map(sourceAsMap);
             request.source(builder.bytes());
 
-            final ActionListener<SearchResponse> searchResponseListener =
-                    createSearchResponseListener(listener, from, size, scriptInfo.getReorderSize(), startTime, scriptInfo);
+            final ActionListener<SearchResponse> searchResponseListener = createSearchResponseListener(
+                    request, listener, from, size, scriptInfo.getReorderSize(),
+                    startTime, scriptInfo);
             return new ActionListener<SearchResponse>() {
                 @Override
                 public void onResponse(SearchResponse response) {
@@ -310,15 +313,30 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
     }
 
     private ActionListener<SearchResponse> createSearchResponseListener(
+            final SearchRequest request,
             final ActionListener<SearchResponse> listener, final int from,
             final int size, final int reorderSize, final long startTime,
             final ScriptInfo scriptInfo) {
         return new ActionListener<SearchResponse>() {
             @Override
             public void onResponse(final SearchResponse response) {
-                if (response.getHits().getTotalHits() == 0) {
+                final long totalHits = response.getHits().getTotalHits();
+                if (totalHits == 0) {
                     if (logger.isDebugEnabled()) {
                         logger.debug("No reranking results: {}", response);
+                    }
+                    listener.onResponse(response);
+                    return;
+                }
+
+                final Object minTotalHits = request
+                        .getHeader(DYNARANK_MIN_TOTAL_HITS);
+                if (minTotalHits instanceof Number
+                        && totalHits < ((Number) minTotalHits).longValue()) {
+                    if (logger.isDebugEnabled()) {
+                        logger.debug(
+                                "totalHits is {} < {}. No reranking results: {}",
+                                totalHits, minTotalHits, response);
                     }
                     listener.onResponse(response);
                     return;
