@@ -6,7 +6,6 @@ import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.codelibs.elasticsearch.dynarank.script.bucket.impl.StandardBucketFactory;
@@ -107,7 +106,7 @@ public class DiversitySortScript extends AbstractExecutableScript {
         final BucketFactory bucketFactory = bucketFactories
                 .get(bucketFactoryName);
         if (bucketFactory == null) {
-            throw new DynamicRankingException("bucket_factory is invalid: "
+            throw new ElasticsearchException("bucket_factory is invalid: "
                     + bucketFactoryName);
         }
 

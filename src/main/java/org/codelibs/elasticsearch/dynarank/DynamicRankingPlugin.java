@@ -15,8 +15,6 @@ import org.elasticsearch.common.inject.Module;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.script.ScriptModule;
 
-import com.google.common.collect.Lists;
-
 public class DynamicRankingPlugin extends Plugin {
 
     @Override
@@ -42,7 +40,7 @@ public class DynamicRankingPlugin extends Plugin {
         module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT, Validator.EMPTY);
         module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_LANG, Validator.EMPTY);
         module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_TYPE, Validator.EMPTY);
-        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS+"*", Validator.EMPTY);
+        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS + "*", Validator.EMPTY);
         module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, Validator.POSITIVE_INTEGER);
         module.registerClusterDynamicSetting(DynamicRanker.INDICES_DYNARANK_REORDER_SIZE, Validator.POSITIVE_INTEGER);
         module.registerClusterDynamicSetting(DynamicRanker.INDICES_DYNARANK_CACHE_EXPIRE, Validator.TIME);

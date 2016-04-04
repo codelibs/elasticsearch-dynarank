@@ -12,9 +12,9 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
-import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
 import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
 import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -49,14 +49,13 @@ import org.elasticsearch.search.internal.InternalSearchHits;
 import org.elasticsearch.search.internal.InternalSearchResponse;
 import org.elasticsearch.search.internal.SearchContext;
 import org.elasticsearch.search.lookup.SourceLookup;
+import org.elasticsearch.search.profile.InternalProfileShardResults;
 import org.elasticsearch.search.suggest.Suggest;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.netty.ChannelBufferStreamInput;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import org.elasticsearch.Version;
-import org.elasticsearch.search.profile.InternalProfileShardResults;
 
 public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
 
@@ -238,7 +237,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     } catch (RetrySearchException e) {
                         Map<String, Object> newSourceAsMap = e.rewrite(sourceAsMap);
                         if (newSourceAsMap == null) {
-                            throw new DynamicRankingException("Failed to rewrite source: " + sourceAsMap);
+                            throw new ElasticsearchException("Failed to rewrite source: " + sourceAsMap);
                         }
                         newSourceAsMap.put("size", size);
                         newSourceAsMap.put("from", from);
@@ -257,7 +256,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                             request.putHeader(DYNARANK_RERANK_ENABLE, Boolean.FALSE);
                             client.search(request, listener);
                         } catch (IOException ioe) {
-                            throw new DynamicRankingException("Failed to parse a new source.", ioe);
+                            throw new ElasticsearchException("Failed to parse a new source.", ioe);
                         }
                     }
                 }
@@ -268,7 +267,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                 }
             };
         } catch (final IOException e) {
-            throw new DynamicRankingException("Failed to parse a source.", e);
+            throw new ElasticsearchException("Failed to parse a source.", e);
         }
     }
 
@@ -441,7 +440,7 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Failed to parse a search response.", e);
                     }
-                    throw new DynamicRankingException(
+                    throw new ElasticsearchException(
                             "Failed to parse a search response.", e);
                 }
             }

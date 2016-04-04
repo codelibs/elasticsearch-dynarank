@@ -6,11 +6,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.codelibs.elasticsearch.dynarank.DynamicRankingException;
 import org.codelibs.elasticsearch.dynarank.ranker.RetrySearchException;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
+import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.logging.ESLogger;
@@ -41,12 +41,12 @@ public class StandardBuckets implements Buckets {
         final String[] diversityFields = (String[]) params
                 .get("diversity_fields");
         if (diversityFields == null) {
-            throw new DynamicRankingException("diversity_fields is null.");
+            throw new ElasticsearchException("diversity_fields is null.");
         }
         final String[] thresholds = (String[]) params
                 .get("diversity_thresholds");
         if (thresholds == null) {
-            throw new DynamicRankingException("diversity_thresholds is null.");
+            throw new ElasticsearchException("diversity_thresholds is null.");
         }
         final float[] diversityThresholds = parseFloats(thresholds);
 
@@ -102,7 +102,7 @@ public class StandardBuckets implements Buckets {
             try {
                 minBucketThreshold  = Integer.parseInt(minBucketThresholdStr.toString());
             } catch (NumberFormatException e) {
-                throw new DynamicRankingException("Invalid value of min_bucket_threshold: " + minBucketThresholdStr.toString(), e);
+                throw new ElasticsearchException("Invalid value of min_bucket_threshold: " + minBucketThresholdStr.toString(), e);
             }
         } else if (minBucketThresholdStr instanceof Number) {
             minBucketThreshold = ((Number) minBucketThresholdStr).intValue();
@@ -113,7 +113,7 @@ public class StandardBuckets implements Buckets {
             try {
                 maxBucketThreshold  = Integer.parseInt(maxBucketThresholdStr.toString());
             } catch (NumberFormatException e) {
-                throw new DynamicRankingException("Invalid value of max_bucket_threshold: " + maxBucketThresholdStr.toString(), e);
+                throw new ElasticsearchException("Invalid value of max_bucket_threshold: " + maxBucketThresholdStr.toString(), e);
             }
         } else if (maxBucketThresholdStr instanceof Number) {
             maxBucketThreshold = ((Number) maxBucketThresholdStr).intValue();
