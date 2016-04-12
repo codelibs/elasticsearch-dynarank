@@ -6,6 +6,7 @@ import static org.elasticsearch.search.internal.InternalSearchHits.readSearchHit
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -503,7 +504,8 @@ public class DynamicRanker extends AbstractLifecycleComponent<DynamicRanker> {
         final CompiledScript compiledScript = scriptService.compile(
                 new Script(scriptInfo.getScript(), scriptInfo.getScriptType(),
                         scriptInfo.getLang(), new HashMap<String, Object>()),
-                ScriptContext.Standard.SEARCH, SearchContext.current());
+                ScriptContext.Standard.SEARCH, SearchContext.current(),
+                Collections.<String, String> emptyMap());
         return (InternalSearchHit[]) scriptService.executable(compiledScript,
                 vars).run();
     }

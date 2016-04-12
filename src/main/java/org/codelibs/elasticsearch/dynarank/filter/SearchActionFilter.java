@@ -12,11 +12,10 @@ import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.tasks.Task;
 
 public class SearchActionFilter extends AbstractComponent
         implements ActionFilter {
-
-    private static final String SEARCH_REQUEST_INVOKED = "filter.codelibs.dynarank.Invoked";
 
     private int order;
 
@@ -35,27 +34,21 @@ public class SearchActionFilter extends AbstractComponent
     }
 
     @Override
-    public void apply(final String action,
+    public void apply(final Task task, final String action,
             @SuppressWarnings("rawtypes") final ActionRequest request,
             @SuppressWarnings("rawtypes") final ActionListener listener,
             final ActionFilterChain chain) {
         if (!SearchAction.INSTANCE.name().equals(action)) {
-            chain.proceed(action, request, listener);
+            chain.proceed(task, action, request, listener);
             return;
         }
 
         final SearchRequest searchRequest = (SearchRequest) request;
-        final Boolean invoked = searchRequest.getHeader(SEARCH_REQUEST_INVOKED);
-        if (invoked != null && invoked.booleanValue()) {
-            @SuppressWarnings("unchecked")
-            final ActionListener<SearchResponse> wrappedListener = dynamicRanker
-                    .wrapActionListener(action, searchRequest, listener);
-            chain.proceed(action, request,
-                    wrappedListener == null ? listener : wrappedListener);
-        } else {
-            searchRequest.putHeader(SEARCH_REQUEST_INVOKED, Boolean.TRUE);
-            chain.proceed(action, request, listener);
-        }
+        @SuppressWarnings("unchecked")
+        final ActionListener<SearchResponse> wrappedListener = dynamicRanker
+                .wrapActionListener(action, searchRequest, listener);
+        chain.proceed(task, action, request,
+                wrappedListener == null ? listener : wrappedListener);
     }
 
     @Override
