@@ -175,7 +175,7 @@ public class DynamicRankingPluginTest {
         assertResultOrder(client, index, type);
         assertResultOrder(client, alias, type);
 
-        runner.createIndex(index + "2", null);
+        runner.createIndex(index + "2", (Settings) null);
         runner.updateAlias(alias, new String[] { index + "2" }, null);
         assertResultOrder(client, alias, type);
     }
