@@ -1036,4 +1036,94 @@ public class DynamicRankingPluginTest {
 
     }
 
+    @Test
+    public void reorder_with_ignored() throws Exception {
+        final String index = "test_index";
+        final String type = "test_type";
+
+        {
+            // create an index
+            final String indexSettings = "{\"index\":{\"analysis\":{\"analyzer\":{"
+                    + "\"minhash_analyzer\":{\"type\":\"custom\",\"tokenizer\":\"standard\",\"filter\":[\"my_minhash\"]}" + "},\"filter\":{"
+                    + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}" + "}}},"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1],\"category_ignored_objects\":[\"category1\"]}},\"reorder_size\":20}"
+                    + "}";
+            runner.createIndex(index, Settings.builder().loadFromSource(indexSettings).build());
+            runner.ensureYellow(index);
+
+            // create a mapping
+            final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
+                    .startObject()//
+                    .startObject(type)//
+                    .startObject("properties")//
+
+                    // id
+                    .startObject("id")//
+                    .field("type", "string")//
+                    .field("index", "not_analyzed")//
+                    .endObject()//
+
+                    // msg
+                    .startObject("msg")//
+                    .field("type", "string")//
+                    .field("copy_to", "minhash_value")//
+                    .endObject()//
+
+                    // category
+                    .startObject("category")//
+                    .field("type", "string")//
+                    .field("index", "not_analyzed")//
+                    .endObject()//
+
+                    // order
+                    .startObject("order")//
+                    .field("type", "long")//
+                    .endObject()//
+
+                    // minhash
+                    .startObject("minhash_value")//
+                    .field("type", "minhash")//
+                    .field("minhash_analyzer", "minhash_analyzer")//
+                    .endObject()//
+
+                    .endObject()//
+                    .endObject()//
+                    .endObject();
+            runner.createMapping(index, type, mappingBuilder);
+        }
+
+        if (!runner.indexExists(index)) {
+            fail();
+        }
+
+        // create 1000 documents
+        final StringBuilder[] texts = createTexts();
+        for (int i = 1; i <= 100; i++) {
+            // System.out.println(texts[i - 1]);
+            final IndexResponse indexResponse1 = runner.insert(index, type, String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\""
+                    + texts[i - 1].toString() + "\",\"category\":\"category" + (i % 2) + "\",\"order\":" + i + "}");
+            assertTrue(indexResponse1.isCreated());
+        }
+        runner.refresh();
+
+        {
+            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery())
+                    .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).addFields("_source", "minhash_value", "category").setFrom(0)
+                    .setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(100, searchHits.getTotalHits());
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("1", hits[0].getSource().get("id"));
+            assertEquals("7", hits[1].getSource().get("id"));
+            assertEquals("11", hits[2].getSource().get("id"));
+            assertEquals("17", hits[3].getSource().get("id"));
+            assertEquals("2", hits[4].getSource().get("id"));
+            assertEquals("9", hits[5].getSource().get("id"));
+            assertEquals("13", hits[6].getSource().get("id"));
+            assertEquals("19", hits[7].getSource().get("id"));
+            assertEquals("3", hits[8].getSource().get("id"));
+            assertEquals("8", hits[9].getSource().get("id"));
+        }
+
+    }
 }
