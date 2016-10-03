@@ -49,6 +49,10 @@ public class StandardBuckets implements Buckets {
             throw new ElasticsearchException("diversity_thresholds is null.");
         }
         final float[] diversityThresholds = parseFloats(thresholds);
+        final Object[][] ignoredObjGroups = new Object[diversityFields.length][];
+        for (int i = 0; i < diversityFields.length; i++) {
+            ignoredObjGroups[i] = (Object[]) params.get(diversityFields[i] + "_ignored_objects");
+        }
 
         if (logger.isDebugEnabled()) {
             logger.debug("diversity_fields: {}, : diversity_thresholds{}",
@@ -60,6 +64,7 @@ public class StandardBuckets implements Buckets {
         for (int i = diversityFields.length - 1; i >= 0; i--) {
             final String diversityField = diversityFields[i];
             final float diversityThreshold = diversityThresholds[i];
+            final Object[] ignoredObjs = ignoredObjGroups[i];
             final List<Bucket> bucketList = new ArrayList<>();
             for (int j = 0; j < length; j++) {
                 boolean insert = false;
@@ -73,16 +78,26 @@ public class StandardBuckets implements Buckets {
                     }
                     return searchHits;
                 }
-                for (final Bucket bucket : bucketList) {
-                    if (bucket.contains(value)) {
-                        bucket.add(hit, value);
-                        insert = true;
-                        break;
+                if (ignoredObjs != null) {
+                    for (final Object ignoredObj : ignoredObjs) {
+                        if (ignoredObj.equals(value)) {
+                            bucketList.add(bucketFactory.createBucket(hit, value, diversityThreshold));
+                            insert = true;
+                            break;
+                        }
                     }
                 }
                 if (!insert) {
-                    bucketList.add(bucketFactory.createBucket(hit, value,
-                            diversityThreshold));
+                    for (final Bucket bucket : bucketList) {
+                        if (bucket.contains(value)) {
+                            bucket.add(hit, value);
+                            insert = true;
+                            break;
+                        }
+                    }
+                    if (!insert) {
+                        bucketList.add(bucketFactory.createBucket(hit, value, diversityThreshold));
+                    }
                 }
             }
             if (bucketList.size() > maxNumOfBuckets) {
