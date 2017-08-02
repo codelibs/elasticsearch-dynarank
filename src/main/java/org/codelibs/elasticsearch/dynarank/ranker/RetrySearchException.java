@@ -1,6 +1,6 @@
 package org.codelibs.elasticsearch.dynarank.ranker;
 
-import java.util.Map;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 public class RetrySearchException extends RuntimeException {
 
@@ -18,11 +18,11 @@ public class RetrySearchException extends RuntimeException {
         return null;
     }
 
-    public Map<String, Object> rewrite(Map<String, Object> source) {
+    public SearchSourceBuilder rewrite(SearchSourceBuilder source) {
         return rewriter.rewrite(source);
     }
 
     public interface QueryRewriter {
-        Map<String, Object> rewrite(Map<String, Object> source);
+        SearchSourceBuilder rewrite(SearchSourceBuilder source);
     }
 }

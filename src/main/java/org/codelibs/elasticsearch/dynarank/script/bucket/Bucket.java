@@ -1,12 +1,12 @@
 package org.codelibs.elasticsearch.dynarank.script.bucket;
 
-import org.elasticsearch.search.internal.InternalSearchHit;
+import org.elasticsearch.search.SearchHit;
 
 public interface Bucket {
 
     boolean contains(Object value);
 
-    InternalSearchHit get();
+    SearchHit get();
 
     void add(Object... args);
 

@@ -11,6 +11,7 @@ import static org.junit.Assert.fail;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker.ScriptInfo;
 import org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner;
+import org.elasticsearch.action.DocWriteResponse.Result;
 import org.elasticsearch.action.admin.indices.alias.IndicesAliasesResponse;
 import org.elasticsearch.action.admin.indices.create.CreateIndexResponse;
 import org.elasticsearch.action.index.IndexResponse;
@@ -47,18 +48,12 @@ public class DynamicRankingPluginTest {
                 settingsBuilder.put("script.search", true);
                 settingsBuilder.put("http.cors.enabled", true);
                 settingsBuilder.put("http.cors.allow-origin", "*");
-                settingsBuilder.put("index.number_of_shards", 3);
-                settingsBuilder.put("index.number_of_replicas", 0);
                 settingsBuilder.putArray("discovery.zen.ping.unicast.hosts",
                         "localhost:9301-9310");
-                settingsBuilder.put("plugin.types",
-                        "org.elasticsearch.script.groovy.GroovyPlugin"
-                                + ",org.codelibs.elasticsearch.dynarank.DynamicRankingPlugin"
-                                + ",org.codelibs.elasticsearch.minhash.MinHashPlugin");
-                settingsBuilder
-                        .put("index.unassigned.node_left.delayed_timeout", "0");
             }
-        }).build(newConfigs().numOfNode(1).clusterName(clusterName));
+        }).build(newConfigs().numOfNode(1).clusterName(clusterName).pluginTypes("org.elasticsearch.script.groovy.GroovyPlugin"
+                                + ",org.codelibs.elasticsearch.dynarank.DynamicRankingPlugin"
+                                + ",org.codelibs.elasticsearch.minhash.MinHashPlugin"));
         runner.ensureGreen();
     }
 
@@ -97,7 +92,7 @@ public class DynamicRankingPluginTest {
             final IndexResponse indexResponse1 = runner.insert(index, type,
                     String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\"test "
                             + i + "\",\"counter\":" + i + "}");
-            assertTrue(indexResponse1.isCreated());
+            assertEquals(Result.CREATED, indexResponse1.getResult());
         }
 
         final DynamicRanker ranker = runner.getInstance(DynamicRanker.class);
@@ -108,9 +103,9 @@ public class DynamicRankingPluginTest {
                     .execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("100", hits.hits()[0].id());
-            assertEquals("91", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("100", hits.getHits()[0].id());
+            assertEquals("91", hits.getHits()[9].id());
         }
 
         final ScriptInfo scriptInfo1 = ranker.getScriptInfo(index);
@@ -127,9 +122,9 @@ public class DynamicRankingPluginTest {
                     .execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("100", hits.hits()[0].id());
-            assertEquals("91", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("100", hits.getHits()[0].id());
+            assertEquals("91", hits.getHits()[9].id());
         }
 
         final ScriptInfo scriptInfo4 = ranker.getScriptInfo(alias);
@@ -169,7 +164,7 @@ public class DynamicRankingPluginTest {
             final IndexResponse indexResponse1 = runner.insert(index, type,
                     String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\"test "
                             + i + "\",\"counter\":" + i + "}");
-            assertTrue(indexResponse1.isCreated());
+            assertEquals(Result.CREATED, indexResponse1.getResult());
         }
 
         assertResultOrder(client, index, type);
@@ -188,9 +183,9 @@ public class DynamicRankingPluginTest {
                     .execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("100", hits.hits()[0].id());
-            assertEquals("91", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("100", hits.getHits()[0].id());
+            assertEquals("91", hits.getHits()[9].id());
         }
 
         {
@@ -200,9 +195,9 @@ public class DynamicRankingPluginTest {
                     .setFrom(50).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("50", hits.hits()[0].id());
-            assertEquals("41", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("50", hits.getHits()[0].id());
+            assertEquals("41", hits.getHits()[9].id());
         }
 
         {
@@ -212,9 +207,9 @@ public class DynamicRankingPluginTest {
                     .setFrom(90).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("10", hits.hits()[0].id());
-            assertEquals("1", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("10", hits.getHits()[0].id());
+            assertEquals("1", hits.getHits()[9].id());
         }
 
         {
@@ -224,10 +219,10 @@ public class DynamicRankingPluginTest {
                     .setFrom(91).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("9", hits.hits()[0].id());
-            assertEquals("1", hits.hits()[8].id());
-            assertEquals("101", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("9", hits.getHits()[0].id());
+            assertEquals("1", hits.getHits()[8].id());
+            assertEquals("101", hits.getHits()[9].id());
         }
 
         {
@@ -237,11 +232,11 @@ public class DynamicRankingPluginTest {
                     .setFrom(95).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("5", hits.hits()[0].id());
-            assertEquals("1", hits.hits()[4].id());
-            assertEquals("101", hits.hits()[5].id());
-            assertEquals("105", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("5", hits.getHits()[0].id());
+            assertEquals("1", hits.getHits()[4].id());
+            assertEquals("101", hits.getHits()[5].id());
+            assertEquals("105", hits.getHits()[9].id());
         }
 
         {
@@ -251,10 +246,10 @@ public class DynamicRankingPluginTest {
                     .setFrom(99).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("1", hits.hits()[0].id());
-            assertEquals("101", hits.hits()[1].id());
-            assertEquals("109", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("1", hits.getHits()[0].id());
+            assertEquals("101", hits.getHits()[1].id());
+            assertEquals("109", hits.getHits()[9].id());
         }
 
         {
@@ -264,9 +259,9 @@ public class DynamicRankingPluginTest {
                     .setFrom(100).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("101", hits.hits()[0].id());
-            assertEquals("110", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("101", hits.getHits()[0].id());
+            assertEquals("110", hits.getHits()[9].id());
         }
 
         {
@@ -278,9 +273,9 @@ public class DynamicRankingPluginTest {
                     .setFrom(0).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(20, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("20", hits.hits()[0].id());
-            assertEquals("11", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("20", hits.getHits()[0].id());
+            assertEquals("11", hits.getHits()[9].id());
         }
 
         {
@@ -292,9 +287,9 @@ public class DynamicRankingPluginTest {
                     .setFrom(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(20, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("10", hits.hits()[0].id());
-            assertEquals("1", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("10", hits.getHits()[0].id());
+            assertEquals("1", hits.getHits()[9].id());
         }
 
         {
@@ -306,9 +301,9 @@ public class DynamicRankingPluginTest {
                     .setFrom(11).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(20, hits.getTotalHits());
-            assertEquals(9, hits.hits().length);
-            assertEquals("9", hits.hits()[0].id());
-            assertEquals("1", hits.hits()[8].id());
+            assertEquals(9, hits.getHits().length);
+            assertEquals("9", hits.getHits()[0].id());
+            assertEquals("1", hits.getHits()[8].id());
         }
 
         {
@@ -318,10 +313,10 @@ public class DynamicRankingPluginTest {
                     .setFrom(0).setSize(101).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(101, hits.hits().length);
-            assertEquals("100", hits.hits()[0].id());
-            assertEquals("1", hits.hits()[99].id());
-            assertEquals("101", hits.hits()[100].id());
+            assertEquals(101, hits.getHits().length);
+            assertEquals("100", hits.getHits()[0].id());
+            assertEquals("1", hits.getHits()[99].id());
+            assertEquals("101", hits.getHits()[100].id());
         }
 
         {
@@ -331,9 +326,9 @@ public class DynamicRankingPluginTest {
                     .setFrom(0).setSize(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(20, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("20", hits.hits()[0].id());
-            assertEquals("11", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("20", hits.getHits()[0].id());
+            assertEquals("11", hits.getHits()[9].id());
         }
 
         {
@@ -343,9 +338,9 @@ public class DynamicRankingPluginTest {
                     .setFrom(15).setSize(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(20, hits.getTotalHits());
-            assertEquals(5, hits.hits().length);
-            assertEquals("5", hits.hits()[0].id());
-            assertEquals("1", hits.hits()[4].id());
+            assertEquals(5, hits.getHits().length);
+            assertEquals("5", hits.getHits()[0].id());
+            assertEquals("1", hits.getHits()[4].id());
         }
 
         {
@@ -355,7 +350,7 @@ public class DynamicRankingPluginTest {
                     .setFrom(20).setSize(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(20, hits.getTotalHits());
-            assertEquals(0, hits.hits().length);
+            assertEquals(0, hits.getHits().length);
         }
 
         {
@@ -365,7 +360,7 @@ public class DynamicRankingPluginTest {
                     .setFrom(21).setSize(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(20, hits.getTotalHits());
-            assertEquals(0, hits.hits().length);
+            assertEquals(0, hits.getHits().length);
         }
 
         {
@@ -382,9 +377,9 @@ public class DynamicRankingPluginTest {
                     .execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
             assertEquals(1000, hits.getTotalHits());
-            assertEquals(10, hits.hits().length);
-            assertEquals("100", hits.hits()[0].id());
-            assertEquals("91", hits.hits()[9].id());
+            assertEquals(10, hits.getHits().length);
+            assertEquals("100", hits.getHits()[0].id());
+            assertEquals("91", hits.getHits()[9].id());
         }
     }
 
@@ -518,13 +513,13 @@ public class DynamicRankingPluginTest {
 
     private void insertTestData(final String index, final String type,
             final int id, final String msg, final String category) {
-        assertTrue(runner.insert(
+        assertEquals(Result.CREATED, runner.insert(
                 index,
                 type,
                 String.valueOf(id),
                 "{\"id\":\"" + id + "\",\"msg\":\"" + msg
                         + "\",\"category\":\"" + category + "\",\"order\":"
-                        + id + "}").isCreated());
+                        + id + "}").getResult());
 
     }
 
@@ -595,7 +590,7 @@ public class DynamicRankingPluginTest {
                     String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\""
                             + texts[i - 1].toString() + "\",\"order\":" + i
                             + "}");
-            assertTrue(indexResponse1.isCreated());
+            assertEquals(Result.CREATED, indexResponse1.getResult());
         }
         runner.refresh();
 
@@ -871,7 +866,7 @@ public class DynamicRankingPluginTest {
             final IndexResponse indexResponse1 =
                     runner.insert(index, type, String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\"" + texts[(i - 1) % 10].toString()
                             + "\",\"order\":" + i + "}");
-            assertTrue(indexResponse1.isCreated());
+            assertEquals(Result.CREATED, indexResponse1.getResult());
         }
         runner.refresh();
 
@@ -980,7 +975,7 @@ public class DynamicRankingPluginTest {
             final IndexResponse indexResponse1 = runner.insert(index, type,
                     String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\"test "
                             + i + "\",\"counter\":" + i + "}");
-            assertTrue(indexResponse1.isCreated());
+            assertEquals(Result.CREATED, indexResponse1.getResult());
         }
 
         {
@@ -1019,7 +1014,7 @@ public class DynamicRankingPluginTest {
             final IndexResponse indexResponse1 = runner.insert(index, type,
                     String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\"test "
                             + i + "\",\"counter\":" + i + "}");
-            assertTrue(indexResponse1.isCreated());
+            assertEquals(Result.CREATED, indexResponse1.getResult());
         }
 
         {
@@ -1102,7 +1097,7 @@ public class DynamicRankingPluginTest {
             // System.out.println(texts[i - 1]);
             final IndexResponse indexResponse1 = runner.insert(index, type, String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\""
                     + texts[i - 1].toString() + "\",\"category\":\"category" + (i % 2) + "\",\"order\":" + i + "}");
-            assertTrue(indexResponse1.isCreated());
+            assertEquals(Result.CREATED, indexResponse1.getResult());
         }
         runner.refresh();
 
