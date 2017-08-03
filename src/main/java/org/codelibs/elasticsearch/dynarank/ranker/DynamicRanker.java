@@ -70,7 +70,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             new Setting<>("index.dynarank.script_sort.type", s -> DEFAULT_SCRIPT_TYPE, Function.identity(), Property.IndexScope);
 
     public static final Setting<Settings> SETTING_INDEX_DYNARANK_PARAMS =
-            Setting.groupSetting("index.dynarank.script_sort.params", Property.IndexScope);
+            Setting.groupSetting("index.dynarank.script_sort.params.", Property.IndexScope);
 
     public static final Setting<Integer> SETTING_INDEX_DYNARANK_REORDER_SIZE =
             Setting.intSetting("index.dynarank.reorder_size", 100, Property.IndexScope);

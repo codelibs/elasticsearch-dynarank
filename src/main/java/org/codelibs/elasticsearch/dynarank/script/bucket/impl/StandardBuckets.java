@@ -24,13 +24,15 @@ import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 public class StandardBuckets implements Buckets {
 
-    private static Logger logger = ESLoggerFactory.getLogger("script.dynarank.sort.bucket.standard");
+    private static Logger logger = ESLoggerFactory
+            .getLogger("script.dynarank.sort.bucket.standard");
 
     protected BucketFactory bucketFactory;
 
     protected Map<String, Object> params;
 
-    public StandardBuckets(final BucketFactory bucketFactory, final Map<String, Object> params) {
+    public StandardBuckets(final BucketFactory bucketFactory,
+            final Map<String, Object> params) {
         this.bucketFactory = bucketFactory;
         this.params = params;
     }
@@ -39,22 +41,27 @@ public class StandardBuckets implements Buckets {
     public SearchHit[] getHits() {
         SearchHit[] searchHits = (SearchHit[]) params.get("searchHits");
         final int length = searchHits.length;
-        final String[] diversityFields = (String[]) params.get("diversity_fields");
+        final String[] diversityFields = (String[]) params
+                .get("diversity_fields");
         if (diversityFields == null) {
             throw new ElasticsearchException("diversity_fields is null.");
         }
-        final String[] thresholds = (String[]) params.get("diversity_thresholds");
+        final String[] thresholds = (String[]) params
+                .get("diversity_thresholds");
         if (thresholds == null) {
             throw new ElasticsearchException("diversity_thresholds is null.");
         }
         final float[] diversityThresholds = parseFloats(thresholds);
         final Object[][] ignoredObjGroups = new Object[diversityFields.length][];
         for (int i = 0; i < diversityFields.length; i++) {
-            ignoredObjGroups[i] = (Object[]) params.get(diversityFields[i] + "_ignored_objects");
+            ignoredObjGroups[i] = (Object[]) params
+                    .get(diversityFields[i] + "_ignored_objects");
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("diversity_fields: {}, : diversity_thresholds{}", Arrays.toString(diversityFields), Arrays.toString(thresholds));
+            logger.debug("diversity_fields: {}, : diversity_thresholds{}",
+                    Arrays.toString(diversityFields),
+                    Arrays.toString(thresholds));
         }
         int maxNumOfBuckets = 0;
         int minNumOfBuckets = Integer.MAX_VALUE;
@@ -69,14 +76,17 @@ public class StandardBuckets implements Buckets {
                 final Object value = getFieldValue(hit, diversityField);
                 if (value == this) {
                     if (logger.isDebugEnabled()) {
-                        logger.debug("diversityField {} does not exist. Reranking is skipped.", diversityField);
+                        logger.debug(
+                                "diversityField {} does not exist. Reranking is skipped.",
+                                diversityField);
                     }
                     return searchHits;
                 }
                 if (ignoredObjs != null) {
                     for (final Object ignoredObj : ignoredObjs) {
                         if (ignoredObj.equals(value)) {
-                            bucketList.add(bucketFactory.createBucket(hit, value, diversityThreshold));
+                            bucketList.add(bucketFactory.createBucket(hit,
+                                    value, diversityThreshold));
                             insert = true;
                             break;
                         }
@@ -91,7 +101,8 @@ public class StandardBuckets implements Buckets {
                         }
                     }
                     if (!insert) {
-                        bucketList.add(bucketFactory.createBucket(hit, value, diversityThreshold));
+                        bucketList.add(bucketFactory.createBucket(hit, value,
+                                diversityThreshold));
                     }
                 }
             }
@@ -110,9 +121,13 @@ public class StandardBuckets implements Buckets {
         Object minBucketThresholdStr = params.get("min_bucket_threshold");
         if (minBucketThresholdStr instanceof String) {
             try {
-                minBucketThreshold = Integer.parseInt(minBucketThresholdStr.toString());
+                minBucketThreshold = Integer
+                        .parseInt(minBucketThresholdStr.toString());
             } catch (NumberFormatException e) {
-                throw new ElasticsearchException("Invalid value of min_bucket_threshold: " + minBucketThresholdStr.toString(), e);
+                throw new ElasticsearchException(
+                        "Invalid value of min_bucket_threshold: "
+                                + minBucketThresholdStr.toString(),
+                        e);
             }
         } else if (minBucketThresholdStr instanceof Number) {
             minBucketThreshold = ((Number) minBucketThresholdStr).intValue();
@@ -121,45 +136,67 @@ public class StandardBuckets implements Buckets {
         Object maxBucketThresholdStr = params.get("max_bucket_threshold");
         if (maxBucketThresholdStr instanceof String) {
             try {
-                maxBucketThreshold = Integer.parseInt(maxBucketThresholdStr.toString());
+                maxBucketThreshold = Integer
+                        .parseInt(maxBucketThresholdStr.toString());
             } catch (NumberFormatException e) {
-                throw new ElasticsearchException("Invalid value of max_bucket_threshold: " + maxBucketThresholdStr.toString(), e);
+                throw new ElasticsearchException(
+                        "Invalid value of max_bucket_threshold: "
+                                + maxBucketThresholdStr.toString(),
+                        e);
             }
         } else if (maxBucketThresholdStr instanceof Number) {
             maxBucketThreshold = ((Number) maxBucketThresholdStr).intValue();
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("searchHits: {}, minNumOfBuckets: {}, maxNumOfBuckets: {}, minBucketSize: {}, maxBucketThreshold: {}",
-                    searchHits.length, minNumOfBuckets, maxNumOfBuckets, minBucketThreshold, maxBucketThreshold);
+            logger.debug(
+                    "searchHits: {}, minNumOfBuckets: {}, maxNumOfBuckets: {}, minBucketSize: {}, maxBucketThreshold: {}",
+                    searchHits.length, minNumOfBuckets, maxNumOfBuckets,
+                    minBucketThreshold, maxBucketThreshold);
         }
 
         if ((minBucketThreshold > 0 && minBucketThreshold >= minNumOfBuckets)
-                || (maxBucketThreshold > 0 && maxBucketThreshold >= maxNumOfBuckets)) {
+                || (maxBucketThreshold > 0
+                        && maxBucketThreshold >= maxNumOfBuckets)) {
             final Object shuffleSeed = params.get("shuffle_seed");
             if (shuffleSeed != null) {
                 if (logger.isDebugEnabled()) {
                     logger.debug("minBucketSize: {}", shuffleSeed);
                 }
-                throw new RetrySearchException(new RetrySearchException.QueryRewriter() {
-                    @Override
-                    public SearchSourceBuilder rewrite(SearchSourceBuilder source) {
-                        float shuffleWeight = 1;
-                        if (params.get("shuffle_weight") instanceof Number) {
-                            shuffleWeight = ((Number) params.get("shuffle_weight")).floatValue();
-                        }
-                        Object shuffleBoostMode = params.get("shuffle_boost_mode");
+                throw new RetrySearchException(
+                        new RetrySearchException.QueryRewriter() {
+                            @Override
+                            public SearchSourceBuilder rewrite(
+                                    SearchSourceBuilder source) {
+                                float shuffleWeight = 1;
+                                if (params.get(
+                                        "shuffle_weight") instanceof Number) {
+                                    shuffleWeight = ((Number) params
+                                            .get("shuffle_weight"))
+                                                    .floatValue();
+                                }
+                                Object shuffleBoostMode = params
+                                        .get("shuffle_boost_mode");
 
-                        FunctionScoreQueryBuilder functionScoreQuery = QueryBuilders.functionScoreQuery(source.query(),
-                                new FunctionScoreQueryBuilder.FilterFunctionBuilder[] { new FunctionScoreQueryBuilder.FilterFunctionBuilder(
-                                        ScoreFunctionBuilders.randomFunction(shuffleSeed.toString()).setWeight(shuffleWeight)) });
-                        if (shuffleBoostMode != null) {
-                            functionScoreQuery.boostMode(CombineFunction.fromString(shuffleBoostMode.toString()));
-                        }
-                        source.query(functionScoreQuery);
-                        return source;
-                    }
-                });
+                                FunctionScoreQueryBuilder functionScoreQuery = QueryBuilders
+                                        .functionScoreQuery(source.query(),
+                                                new FunctionScoreQueryBuilder.FilterFunctionBuilder[] {
+                                                        new FunctionScoreQueryBuilder.FilterFunctionBuilder(
+                                                                ScoreFunctionBuilders
+                                                                        .randomFunction(
+                                                                                shuffleSeed
+                                                                                        .toString())
+                                                                        .setWeight(
+                                                                                shuffleWeight)) });
+                                if (shuffleBoostMode != null) {
+                                    functionScoreQuery.boostMode(CombineFunction
+                                            .fromString(shuffleBoostMode
+                                                    .toString()));
+                                }
+                                source.query(functionScoreQuery);
+                                return source;
+                            }
+                        });
             }
         }
 
@@ -169,6 +206,14 @@ public class StandardBuckets implements Buckets {
     private Object getFieldValue(final SearchHit hit, final String fieldName) {
         final SearchHitField field = hit.getFields().get(fieldName);
         if (field == null) {
+            Map<String, Object> source = hit.getSourceAsMap();
+            // TODO nested
+            final Object object = source.get(fieldName);
+            if (object instanceof String) {
+                return object;
+            } else if (object instanceof Number) {
+                return object;
+            }
             return this;
         }
         final Object object = field.getValue();
@@ -192,7 +237,8 @@ public class StandardBuckets implements Buckets {
         return values;
     }
 
-    protected SearchHit[] createHits(final int size, final List<Bucket> bucketList) {
+    protected SearchHit[] createHits(final int size,
+            final List<Bucket> bucketList) {
         if (logger.isDebugEnabled()) {
             logger.debug("{} docs -> {} buckets", size, bucketList.size());
             for (int i = 0; i < bucketList.size(); i++) {
