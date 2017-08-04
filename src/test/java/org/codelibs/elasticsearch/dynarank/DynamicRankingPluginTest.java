@@ -43,7 +43,7 @@ public class DynamicRankingPluginTest {
         runner.onBuild(new ElasticsearchClusterRunner.Builder() {
             @Override
             public void build(final int number, final Builder settingsBuilder) {
-                settingsBuilder.put("indices.dynarank.cache.clean_interval",
+                settingsBuilder.put("dynarank.cache.clean_interval",
                         "1s");
                 settingsBuilder.put("script.search", true);
                 settingsBuilder.put("http.cors.enabled", true);
@@ -52,8 +52,7 @@ public class DynamicRankingPluginTest {
                         "localhost:9301-9310");
             }
         }).build(newConfigs().numOfNode(1).clusterName(clusterName)
-                .pluginTypes("org.elasticsearch.script.groovy.GroovyPlugin"
-                        + ",org.codelibs.elasticsearch.dynarank.DynamicRankingPlugin"
+                .pluginTypes("org.codelibs.elasticsearch.dynarank.DynamicRankingPlugin"
                         + ",org.codelibs.elasticsearch.minhash.MinHashPlugin"));
         runner.ensureGreen();
     }
@@ -392,7 +391,7 @@ public class DynamicRankingPluginTest {
                     + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
                     + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1]}},\"reorder_size\":20}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1]}},\"reorder_size\":20}"
                     + "}";
             runner.createIndex(index,
                     Settings.builder().loadFromSource(indexSettings).build());
@@ -522,7 +521,7 @@ public class DynamicRankingPluginTest {
                     + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
                     + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95]}},\"reorder_size\":20}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95]}},\"reorder_size\":20}"
                     + "}";
             runner.createIndex(index,
                     Settings.builder().loadFromSource(indexSettings).build());
@@ -758,7 +757,7 @@ public class DynamicRankingPluginTest {
                     + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
                     + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\""
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\""
                     + name
                     + "\":\"1\",\"shuffle_seed\":\"1\"}},\"reorder_size\":10}"
                     + "}";
@@ -982,7 +981,7 @@ public class DynamicRankingPluginTest {
                     + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
                     + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"native\",\"script\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1],\"category_ignored_objects\":[\"category1\"]}},\"reorder_size\":20}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1],\"category_ignored_objects\":[\"category1\"]}},\"reorder_size\":20}"
                     + "}";
             runner.createIndex(index,
                     Settings.builder().loadFromSource(indexSettings).build());

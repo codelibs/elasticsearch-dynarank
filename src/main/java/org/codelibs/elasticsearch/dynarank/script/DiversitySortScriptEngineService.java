@@ -28,7 +28,7 @@ public class DiversitySortScriptEngineService extends AbstractComponent implemen
 
     private static final String STANDARD = "standard";
 
-    public static Setting<Settings> SETTING_SCRIPT_DYNARANK_BUCKET = Setting.groupSetting("script.dynarank.bucket", Property.NodeScope);
+    public static final Setting<Settings> SETTING_SCRIPT_DYNARANK_BUCKET = Setting.groupSetting("script.dynarank.bucket.", Property.NodeScope);
 
     private Map<String, BucketFactory> bucketFactories;
 

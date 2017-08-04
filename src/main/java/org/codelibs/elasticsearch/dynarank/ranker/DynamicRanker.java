@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
+import org.codelibs.elasticsearch.dynarank.script.DiversitySortScriptEngineService;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
@@ -64,7 +65,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             Setting.simpleString("index.dynarank.script_sort.script", Property.IndexScope);
 
     public static final Setting<String> SETTING_INDEX_DYNARANK_LANG =
-            new Setting<>("index.dynarank.script_sort.lang", s -> DEFAULT_SCRIPT_LANG, Function.identity(), Property.IndexScope);
+            Setting.simpleString("index.dynarank.script_sort.lang", Property.IndexScope);
 
     public static final Setting<String> SETTING_INDEX_DYNARANK_TYPE =
             new Setting<>("index.dynarank.script_sort.type", s -> DEFAULT_SCRIPT_TYPE, Function.identity(), Property.IndexScope);
@@ -246,22 +247,32 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     if (aliasOrIndex == null) {
                         return ScriptInfo.NO_SCRIPT_INFO;
                     }
-                    Settings indexSettings = null;
-                    for (IndexMetaData indexMD : aliasOrIndex.getIndices()) {
-                        final Settings scriptSettings = indexMD.getSettings();
-                        final String script = SETTING_INDEX_DYNARANK_SCRIPT.get(scriptSettings);
-                        if (script != null && script.length() > 0) {
-                            indexSettings = scriptSettings;
-                        }
-                    }
 
-                    if (indexSettings == null) {
+                   final ScriptInfo[] scriptInfos = aliasOrIndex.getIndices().stream()
+                            .map(md -> md.getSettings())
+                            .filter(s -> SETTING_INDEX_DYNARANK_LANG.get(s)
+                                    .length() > 0)
+                            .map(settings -> new ScriptInfo(
+                                    SETTING_INDEX_DYNARANK_SCRIPT.get(settings),
+                                    SETTING_INDEX_DYNARANK_LANG.get(settings),
+                                    SETTING_INDEX_DYNARANK_TYPE.get(settings),
+                                    SETTING_INDEX_DYNARANK_PARAMS.get(settings),
+                                    SETTING_INDEX_DYNARANK_REORDER_SIZE
+                                            .get(settings))).toArray(n->new ScriptInfo[n]);
+
+                    if (scriptInfos.length == 0) {
                         return ScriptInfo.NO_SCRIPT_INFO;
+                    } else if (scriptInfos.length == 1) {
+                        return scriptInfos[0];
+                    } else {
+                        for (ScriptInfo scriptInfo : scriptInfos) {
+                            if (!scriptInfo.getLang().equals(
+                                    DiversitySortScriptEngineService.SCRIPT_NAME)) {
+                                return ScriptInfo.NO_SCRIPT_INFO;
+                            }
+                        }
+                        return scriptInfos[0];
                     }
-
-                    return new ScriptInfo(SETTING_INDEX_DYNARANK_SCRIPT.get(indexSettings), SETTING_INDEX_DYNARANK_LANG.get(indexSettings),
-                            SETTING_INDEX_DYNARANK_TYPE.get(indexSettings), SETTING_INDEX_DYNARANK_PARAMS.get(indexSettings),
-                            SETTING_INDEX_DYNARANK_REORDER_SIZE.get(indexSettings));
                 }
             });
         } catch (final Exception e) {
@@ -286,15 +297,20 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     return;
                 }
 
-                // TODO ?
-                //                final Object minTotalHits = request.getHeader(DYNARANK_MIN_TOTAL_HITS);
-                //                if (minTotalHits instanceof Number && totalHits < ((Number) minTotalHits).longValue()) {
-                //                    if (logger.isDebugEnabled()) {
-                //                        logger.debug("totalHits is {} < {}. No reranking results: {}", totalHits, minTotalHits, searchResponse);
-                //                    }
-                //                    listener.onResponse(response);
-                //                    return;
-                //                }
+                final String minTotalHitsValue = threadPool.getThreadContext()
+                        .getHeader(DYNARANK_MIN_TOTAL_HITS);
+                if (minTotalHitsValue != null) {
+                    final long minTotalHits = Long.parseLong(minTotalHitsValue);
+                    if (totalHits < minTotalHits) {
+                        if (logger.isDebugEnabled()) {
+                            logger.debug(
+                                    "totalHits is {} < {}. No reranking results: {}",
+                                    totalHits, minTotalHits, searchResponse);
+                        }
+                        listener.onResponse(response);
+                        return;
+                    }
+                }
 
                 if (logger.isDebugEnabled()) {
                     logger.debug("Reranking results: {}", searchResponse);
