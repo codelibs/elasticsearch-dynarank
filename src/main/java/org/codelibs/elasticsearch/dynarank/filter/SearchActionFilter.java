@@ -21,8 +21,6 @@ public class SearchActionFilter extends AbstractComponent implements ActionFilte
 
     private int order;
 
-    private DynamicRanker dynamicRanker;
-
     @Inject
     public SearchActionFilter(final Settings settings) {
         super(settings);
@@ -44,12 +42,7 @@ public class SearchActionFilter extends AbstractComponent implements ActionFilte
         }
 
         final SearchRequest searchRequest = (SearchRequest) request;
-        final ActionListener<Response> wrappedListener = dynamicRanker.wrapActionListener(action, searchRequest, listener);
+        final ActionListener<Response> wrappedListener = DynamicRanker.getInstance().wrapActionListener(action, searchRequest, listener);
         chain.proceed(task, action, request, wrappedListener == null ? listener : wrappedListener);
     }
-
-    public void setDynamicRanker(final DynamicRanker dynamicRanker) {
-        this.dynamicRanker = dynamicRanker;
-    }
-
 }

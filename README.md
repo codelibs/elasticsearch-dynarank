@@ -68,18 +68,18 @@ Create "sample" index:
 
 DynaRank plugin is enabled if your re-order script is set to the target index:
 
-    $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.script_sort.script=searchHits.sort%20%7Bs1%2C%20s2%20-%3E%20s2.field%28%27counter%27%29.value%28%29%20-%20s1.field%28%27counter%27%29.value%28%29%7D%20as%20org.elasticsearch.search.internal.InternalSearchHit%5B%5D'
+    $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.script_sort.script=searchHits.sort%20%7Bs1%2C%20s2%20-%3E%20s2.getSource%28%29.get%28%27counter%27%29%20-%20s1.getSource%28%29.get%28%27counter%27%29%7D%20as%20org.elasticsearch.search.SearchHit%5B%5D'
     $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.reorder_size=5'
 
 The above script is:
 
-    searchHits.sort {s1, s2 -> s2.field('counter').value() - s1.field('counter').value()} as org.elasticsearch.search.internal.InternalSearchHit[]
+    searchHits.sort {s1, s2 -> s2.getSource().get('counter').value() - s1.getSource().get('counter').value()} as org.elasticsearch.search.SearchHit[]
 
 This setting sorts top 5 documents (5 is given by reorder\_size) by a descending order of "counter" field, and others are by an ascending order.
 
 ### Disable Reranking
 
-Set an empty value to index.dynarank.script_sort.script:
+Set an empty value to index.dynarank.script\_sort.script:
 
     $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.script_sort.script='
 
@@ -96,8 +96,7 @@ The configuration is below:
       "index" : {
         "dynarank":{
           "script_sort":{
-            "lang":"native",
-            "script":"dynarank_diversity_sort",
+            "lang":"dynarank_diversity_sort",
             "params":{
               "diversity_fields":["filedname1", "filedname2"],
               "diversity_thresholds":[0.95, 1]
