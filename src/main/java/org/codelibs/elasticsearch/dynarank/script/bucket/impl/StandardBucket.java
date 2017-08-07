@@ -14,8 +14,7 @@ public class StandardBucket implements Bucket {
 
     private float threshold;
 
-    public StandardBucket(final SearchHit hit, final Object hash,
-            final float threshold) {
+    public StandardBucket(final SearchHit hit, final Object hash, final float threshold) {
         this.hash = hash;
         this.threshold = threshold;
         queue.add(hit);
@@ -48,8 +47,7 @@ public class StandardBucket implements Bucket {
         if (value instanceof String) {
             return value.toString().equals(hash);
         } else if (value instanceof Number) {
-            return Math.abs(((Number) value).doubleValue()
-                    - ((Number) hash).doubleValue()) < (double) threshold;
+            return Math.abs(((Number) value).doubleValue() - ((Number) hash).doubleValue()) < threshold;
         } else if (value instanceof byte[]) {
             final byte[] target = (byte[]) value;
             return MinHash.compare((byte[]) hash, target) >= threshold;
@@ -69,7 +67,6 @@ public class StandardBucket implements Bucket {
 
     @Override
     public String toString() {
-        return "StandardBucket [queue=" + queue + ", hash=" + hash
-                + ", threshold=" + threshold + "]";
+        return "StandardBucket [queue=" + queue + ", hash=" + hash + ", threshold=" + threshold + "]";
     }
 }
