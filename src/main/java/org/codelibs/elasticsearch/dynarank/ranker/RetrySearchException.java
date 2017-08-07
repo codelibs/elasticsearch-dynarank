@@ -1,12 +1,14 @@
 package org.codelibs.elasticsearch.dynarank.ranker;
 
-import java.util.Map;
+import java.io.Serializable;
+
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 public class RetrySearchException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
 
-    private QueryRewriter rewriter;
+    private final QueryRewriter rewriter;
 
     public RetrySearchException(QueryRewriter rewriter) {
         super();
@@ -18,11 +20,11 @@ public class RetrySearchException extends RuntimeException {
         return null;
     }
 
-    public Map<String, Object> rewrite(Map<String, Object> source) {
+    public SearchSourceBuilder rewrite(SearchSourceBuilder source) {
         return rewriter.rewrite(source);
     }
 
-    public interface QueryRewriter {
-        Map<String, Object> rewrite(Map<String, Object> source);
+    public interface QueryRewriter extends Serializable {
+        SearchSourceBuilder rewrite(SearchSourceBuilder source);
     }
 }

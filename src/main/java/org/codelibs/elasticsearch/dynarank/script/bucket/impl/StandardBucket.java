@@ -5,17 +5,16 @@ import java.util.Queue;
 
 import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
 import org.codelibs.minhash.MinHash;
-import org.elasticsearch.search.internal.InternalSearchHit;
+import org.elasticsearch.search.SearchHit;
 
 public class StandardBucket implements Bucket {
-    protected Queue<InternalSearchHit> queue = new LinkedList<>();
+    protected Queue<SearchHit> queue = new LinkedList<>();
 
     protected Object hash;
 
     private float threshold;
 
-    public StandardBucket(final InternalSearchHit hit, final Object hash,
-            final float threshold) {
+    public StandardBucket(final SearchHit hit, final Object hash, final float threshold) {
         this.hash = hash;
         this.threshold = threshold;
         queue.add(hit);
@@ -27,7 +26,7 @@ public class StandardBucket implements Bucket {
     }
 
     @Override
-    public InternalSearchHit get() {
+    public SearchHit get() {
         return queue.peek();
     }
 
@@ -48,8 +47,7 @@ public class StandardBucket implements Bucket {
         if (value instanceof String) {
             return value.toString().equals(hash);
         } else if (value instanceof Number) {
-            return Math.abs(((Number) value).doubleValue()
-                    - ((Number) hash).doubleValue()) < (double) threshold;
+            return Math.abs(((Number) value).doubleValue() - ((Number) hash).doubleValue()) < threshold;
         } else if (value instanceof byte[]) {
             final byte[] target = (byte[]) value;
             return MinHash.compare((byte[]) hash, target) >= threshold;
@@ -59,7 +57,7 @@ public class StandardBucket implements Bucket {
 
     @Override
     public void add(final Object... args) {
-        queue.add((InternalSearchHit) args[0]);
+        queue.add((SearchHit) args[0]);
     }
 
     @Override
@@ -69,7 +67,6 @@ public class StandardBucket implements Bucket {
 
     @Override
     public String toString() {
-        return "StandardBucket [queue=" + queue + ", hash=" + hash
-                + ", threshold=" + threshold + "]";
+        return "StandardBucket [queue=" + queue + ", hash=" + hash + ", threshold=" + threshold + "]";
     }
 }

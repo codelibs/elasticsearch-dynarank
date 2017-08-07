@@ -1,66 +1,51 @@
 package org.codelibs.elasticsearch.dynarank;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 
 import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
-import org.codelibs.elasticsearch.dynarank.module.DynamicRankerModule;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
-import org.codelibs.elasticsearch.dynarank.script.DiversitySortScript;
-import org.elasticsearch.action.ActionModule;
-import org.elasticsearch.cluster.ClusterModule;
-import org.elasticsearch.cluster.settings.Validator;
+import org.codelibs.elasticsearch.dynarank.script.DiversitySortScriptEngineService;
+import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.common.component.LifecycleComponent;
-import org.elasticsearch.common.inject.Module;
+import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
-import org.elasticsearch.script.ScriptModule;
+import org.elasticsearch.plugins.ScriptPlugin;
+import org.elasticsearch.script.ScriptEngineService;
 
-public class DynamicRankingPlugin extends Plugin {
-
-    @Override
-    public String name() {
-        return "dynarank";
-    }
+public class DynamicRankingPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
 
     @Override
-    public String description() {
-        return "This plugin re-orders top N documents in a search results.";
+    public ScriptEngineService getScriptEngineService(Settings settings) {
+        return new DiversitySortScriptEngineService(settings);
     }
 
-    public void onModule(final ScriptModule module) {
-        module.registerScript(DiversitySortScript.SCRIPT_NAME,
-                DiversitySortScript.Factory.class);
-    }
-
-    public void onModule(final ActionModule module) {
-        module.registerFilter(SearchActionFilter.class);
-    }
-
-    public void onModule(final ClusterModule module) {
-        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT, Validator.EMPTY);
-        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_LANG, Validator.EMPTY);
-        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_TYPE, Validator.EMPTY);
-        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_SCRIPT_PARAMS + "*", Validator.EMPTY);
-        module.registerIndexDynamicSetting(DynamicRanker.INDEX_DYNARANK_REORDER_SIZE, Validator.POSITIVE_INTEGER);
-        module.registerClusterDynamicSetting(DynamicRanker.INDICES_DYNARANK_REORDER_SIZE, Validator.POSITIVE_INTEGER);
-        module.registerClusterDynamicSetting(DynamicRanker.INDICES_DYNARANK_CACHE_EXPIRE, Validator.TIME);
-        module.registerClusterDynamicSetting(DynamicRanker.INDICES_DYNARANK_CACHE_CLEAN_INTERVAL, Validator.TIME);
-    }
-
-    // for Service
     @Override
-    public Collection<Module> nodeModules() {
-        final Collection<Module> modules = new ArrayList<>();
-        modules.add(new DynamicRankerModule());
-        return modules;
+    public List<Class<? extends ActionFilter>> getActionFilters() {
+        return Arrays.asList(SearchActionFilter.class);
     }
 
-    // for Service
-    @SuppressWarnings("rawtypes")
     @Override
-    public Collection<Class<? extends LifecycleComponent>> nodeServices() {
-        final Collection<Class<? extends LifecycleComponent>> services = new ArrayList<>();
+    public Collection<Class<? extends LifecycleComponent>> getGuiceServiceClasses() {
+        Collection<Class<? extends LifecycleComponent>> services = new ArrayList<>();
         services.add(DynamicRanker.class);
         return services;
+    }
+
+    @Override
+    public List<Setting<?>> getSettings() {
+        return Arrays.asList(//
+                DynamicRanker.SETTING_INDEX_DYNARANK_SCRIPT, //
+                DynamicRanker.SETTING_INDEX_DYNARANK_LANG, //
+                DynamicRanker.SETTING_INDEX_DYNARANK_TYPE, //
+                DynamicRanker.SETTING_INDEX_DYNARANK_PARAMS, //
+                DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE, //
+                DynamicRanker.SETTING_DYNARANK_CACHE_CLEAN_INTERVAL, //
+                DynamicRanker.SETTING_DYNARANK_CACHE_EXPIRE //
+        );
     }
 }

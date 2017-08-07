@@ -6,7 +6,7 @@ import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.search.internal.InternalSearchHit;
+import org.elasticsearch.search.SearchHit;
 
 public class StandardBucketFactory implements BucketFactory {
 
@@ -23,7 +23,6 @@ public class StandardBucketFactory implements BucketFactory {
 
     @Override
     public Bucket createBucket(final Object... args) {
-        return new StandardBucket((InternalSearchHit) args[0], args[1],
-                (float) args[2]);
+        return new StandardBucket((SearchHit) args[0], args[1], (float) args[2]);
     }
 }

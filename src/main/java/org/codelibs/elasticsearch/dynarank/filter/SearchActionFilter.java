@@ -6,26 +6,26 @@ import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchAction;
 import org.elasticsearch.action.search.SearchRequest;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.action.support.ActionFilterChain;
 import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.inject.Inject;
+import org.elasticsearch.common.settings.Setting;
+import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.tasks.Task;
 
-public class SearchActionFilter extends AbstractComponent
-        implements ActionFilter {
+public class SearchActionFilter extends AbstractComponent implements ActionFilter {
+
+    public static Setting<Integer> SETTING_DYNARANK_FILTER_ORDER = Setting.intSetting("dynarank.filter.order", 10, Property.NodeScope);
 
     private int order;
-
-    private DynamicRanker dynamicRanker;
 
     @Inject
     public SearchActionFilter(final Settings settings) {
         super(settings);
 
-        order = settings.getAsInt("indices.dynarank.filter.order", 10);
+        order = SETTING_DYNARANK_FILTER_ORDER.get(settings);
     }
 
     @Override
@@ -34,32 +34,15 @@ public class SearchActionFilter extends AbstractComponent
     }
 
     @Override
-    public void apply(final Task task, final String action,
-            @SuppressWarnings("rawtypes") final ActionRequest request,
-            @SuppressWarnings("rawtypes") final ActionListener listener,
-            final ActionFilterChain chain) {
+    public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request,
+            ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
         if (!SearchAction.INSTANCE.name().equals(action)) {
             chain.proceed(task, action, request, listener);
             return;
         }
 
         final SearchRequest searchRequest = (SearchRequest) request;
-        @SuppressWarnings("unchecked")
-        final ActionListener<SearchResponse> wrappedListener = dynamicRanker
-                .wrapActionListener(action, searchRequest, listener);
-        chain.proceed(task, action, request,
-                wrappedListener == null ? listener : wrappedListener);
+        final ActionListener<Response> wrappedListener = DynamicRanker.getInstance().wrapActionListener(action, searchRequest, listener);
+        chain.proceed(task, action, request, wrappedListener == null ? listener : wrappedListener);
     }
-
-    @Override
-    public void apply(final String action, final ActionResponse response,
-            @SuppressWarnings("rawtypes") final ActionListener listener,
-            final ActionFilterChain chain) {
-        chain.proceed(action, response, listener);
-    }
-
-    public void setDynamicRanker(final DynamicRanker dynamicRanker) {
-        this.dynamicRanker = dynamicRanker;
-    }
-
 }
