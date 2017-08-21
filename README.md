@@ -16,7 +16,7 @@ Elasticsearch has [rescoring](http://www.elasticsearch.org/guide/en/elasticsearc
 | Version   | Elasticsearch |
 |:---------:|:-------------:|
 | master    | 5.5.X         |
-| 5.5.0     | 5.5.1         |
+| 5.5.1     | 5.5.2         |
 | 2.4.0     | 2.4.0         |
 | 2.3.1     | 2.3.5         |
 | 2.2.0     | 2.2.0         |
@@ -35,7 +35,7 @@ Please file an [issue](https://github.com/codelibs/elasticsearch-dynarank/issues
 
 ### For 5.x
 
-    $ $ES_HOME/bin/elasticsearch-plugin install org.codelibs:elasticsearch-dynarank:5.5.0
+    $ $ES_HOME/bin/elasticsearch-plugin install org.codelibs:elasticsearch-dynarank:5.5.1
 
 ### For 2.x
 
