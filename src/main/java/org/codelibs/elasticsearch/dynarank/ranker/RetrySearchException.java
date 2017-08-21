@@ -10,7 +10,7 @@ public class RetrySearchException extends RuntimeException {
 
     private final QueryRewriter rewriter;
 
-    public RetrySearchException(QueryRewriter rewriter) {
+    public RetrySearchException(final QueryRewriter rewriter) {
         super();
         this.rewriter = rewriter;
     }
@@ -20,7 +20,7 @@ public class RetrySearchException extends RuntimeException {
         return null;
     }
 
-    public SearchSourceBuilder rewrite(SearchSourceBuilder source) {
+    public SearchSourceBuilder rewrite(final SearchSourceBuilder source) {
         return rewriter.rewrite(source);
     }
 

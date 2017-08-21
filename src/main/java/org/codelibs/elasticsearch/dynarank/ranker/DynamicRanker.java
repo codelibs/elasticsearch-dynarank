@@ -8,7 +8,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -86,19 +85,19 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
     private static final String DYNARANK_MIN_TOTAL_HITS = "_minTotalHits";
 
-    private ClusterService clusterService;
+    private final ClusterService clusterService;
 
-    private ScriptService scriptService;
+    private final ScriptService scriptService;
 
-    private Cache<String, ScriptInfo> scriptInfoCache;
+    private final Cache<String, ScriptInfo> scriptInfoCache;
 
-    private ThreadPool threadPool;
+    private final ThreadPool threadPool;
 
-    private TimeValue cleanInterval;
+    private final TimeValue cleanInterval;
 
     private Reaper reaper;
 
-    private Client client;
+    private final Client client;
 
     public static DynamicRanker getInstance() {
         return instance;
@@ -156,8 +155,8 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             return null;
         }
 
-        ThreadContext threadContext = threadPool.getThreadContext();
-        String isRerank = threadContext.getHeader(DYNARANK_RERANK_ENABLE);
+        final ThreadContext threadContext = threadPool.getThreadContext();
+        final String isRerank = threadContext.getHeader(DYNARANK_RERANK_ENABLE);
         if (isRerank != null && !Boolean.valueOf(isRerank)) {
             return null;
         }
@@ -205,15 +204,15 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                 createSearchResponseListener(request, listener, from, size, scriptInfo.getReorderSize(), startTime, scriptInfo);
         return new ActionListener<Response>() {
             @Override
-            public void onResponse(Response response) {
+            public void onResponse(final Response response) {
                 try {
                     searchResponseListener.onResponse(response);
-                } catch (RetrySearchException e) {
+                } catch (final RetrySearchException e) {
                     threadPool.getThreadContext().putHeader(DYNARANK_RERANK_ENABLE, Boolean.FALSE.toString());
                     source.size(size);
                     source.from(from);
                     source.toString();
-                    SearchSourceBuilder newSource = e.rewrite(source);
+                    final SearchSourceBuilder newSource = e.rewrite(source);
                     if (newSource == null) {
                         throw new ElasticsearchException("Failed to rewrite source: " + source);
                     }
@@ -228,7 +227,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             }
 
             @Override
-            public void onFailure(Exception e) {
+            public void onFailure(final Exception e) {
                 searchResponseListener.onFailure(e);
             }
         };
@@ -236,34 +235,31 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
     public ScriptInfo getScriptInfo(final String index) {
         try {
-            return scriptInfoCache.get(index, new Callable<ScriptInfo>() {
-                @Override
-                public ScriptInfo call() throws Exception {
-                    final MetaData metaData = clusterService.state().getMetaData();
-                    AliasOrIndex aliasOrIndex = metaData.getAliasAndIndexLookup().get(index);
-                    if (aliasOrIndex == null) {
-                        return ScriptInfo.NO_SCRIPT_INFO;
-                    }
+            return scriptInfoCache.get(index, () -> {
+                final MetaData metaData = clusterService.state().getMetaData();
+                final AliasOrIndex aliasOrIndex = metaData.getAliasAndIndexLookup().get(index);
+                if (aliasOrIndex == null) {
+                    return ScriptInfo.NO_SCRIPT_INFO;
+                }
 
-                    final ScriptInfo[] scriptInfos = aliasOrIndex.getIndices().stream().map(md -> md.getSettings())
-                            .filter(s -> SETTING_INDEX_DYNARANK_LANG.get(s).length() > 0)
-                            .map(settings -> new ScriptInfo(SETTING_INDEX_DYNARANK_SCRIPT.get(settings),
-                                    SETTING_INDEX_DYNARANK_LANG.get(settings), SETTING_INDEX_DYNARANK_TYPE.get(settings),
-                                    SETTING_INDEX_DYNARANK_PARAMS.get(settings), SETTING_INDEX_DYNARANK_REORDER_SIZE.get(settings)))
-                            .toArray(n -> new ScriptInfo[n]);
+                final ScriptInfo[] scriptInfos = aliasOrIndex.getIndices().stream().map(md -> md.getSettings())
+                        .filter(s -> SETTING_INDEX_DYNARANK_LANG.get(s).length() > 0)
+                        .map(settings -> new ScriptInfo(SETTING_INDEX_DYNARANK_SCRIPT.get(settings),
+                                SETTING_INDEX_DYNARANK_LANG.get(settings), SETTING_INDEX_DYNARANK_TYPE.get(settings),
+                                SETTING_INDEX_DYNARANK_PARAMS.get(settings), SETTING_INDEX_DYNARANK_REORDER_SIZE.get(settings)))
+                        .toArray(n -> new ScriptInfo[n]);
 
-                    if (scriptInfos.length == 0) {
-                        return ScriptInfo.NO_SCRIPT_INFO;
-                    } else if (scriptInfos.length == 1) {
-                        return scriptInfos[0];
-                    } else {
-                        for (ScriptInfo scriptInfo : scriptInfos) {
-                            if (!scriptInfo.getLang().equals(DiversitySortScriptEngineService.SCRIPT_NAME)) {
-                                return ScriptInfo.NO_SCRIPT_INFO;
-                            }
+                if (scriptInfos.length == 0) {
+                    return ScriptInfo.NO_SCRIPT_INFO;
+                } else if (scriptInfos.length == 1) {
+                    return scriptInfos[0];
+                } else {
+                    for (final ScriptInfo scriptInfo : scriptInfos) {
+                        if (!scriptInfo.getLang().equals(DiversitySortScriptEngineService.SCRIPT_NAME)) {
+                            return ScriptInfo.NO_SCRIPT_INFO;
                         }
-                        return scriptInfos[0];
                     }
+                    return scriptInfos[0];
                 }
             });
         } catch (final Exception e) {
@@ -278,7 +274,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
         return new ActionListener<Response>() {
             @Override
             public void onResponse(final Response response) {
-                SearchResponse searchResponse = (SearchResponse) response;
+                final SearchResponse searchResponse = (SearchResponse) response;
                 final long totalHits = searchResponse.getHits().getTotalHits();
                 if (totalHits == 0) {
                     if (logger.isDebugEnabled()) {

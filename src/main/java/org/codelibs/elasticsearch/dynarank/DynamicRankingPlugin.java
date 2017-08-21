@@ -20,7 +20,7 @@ import org.elasticsearch.script.ScriptEngineService;
 public class DynamicRankingPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
 
     @Override
-    public ScriptEngineService getScriptEngineService(Settings settings) {
+    public ScriptEngineService getScriptEngineService(final Settings settings) {
         return new DiversitySortScriptEngineService(settings);
     }
 
@@ -31,7 +31,7 @@ public class DynamicRankingPlugin extends Plugin implements ActionPlugin, Script
 
     @Override
     public Collection<Class<? extends LifecycleComponent>> getGuiceServiceClasses() {
-        Collection<Class<? extends LifecycleComponent>> services = new ArrayList<>();
+        final Collection<Class<? extends LifecycleComponent>> services = new ArrayList<>();
         services.add(DynamicRanker.class);
         return services;
     }

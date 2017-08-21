@@ -12,7 +12,7 @@ public class StandardBucket implements Bucket {
 
     protected Object hash;
 
-    private float threshold;
+    private final float threshold;
 
     public StandardBucket(final SearchHit hit, final Object hash, final float threshold) {
         this.hash = hash;

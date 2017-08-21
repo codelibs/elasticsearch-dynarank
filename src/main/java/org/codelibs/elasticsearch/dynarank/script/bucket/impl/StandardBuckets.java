@@ -107,22 +107,22 @@ public class StandardBuckets implements Buckets {
         int minBucketThreshold = 0;
         int maxBucketThreshold = 0;
 
-        Object minBucketThresholdStr = params.get("min_bucket_threshold");
+        final Object minBucketThresholdStr = params.get("min_bucket_threshold");
         if (minBucketThresholdStr instanceof String) {
             try {
                 minBucketThreshold = Integer.parseInt(minBucketThresholdStr.toString());
-            } catch (NumberFormatException e) {
+            } catch (final NumberFormatException e) {
                 throw new ElasticsearchException("Invalid value of min_bucket_threshold: " + minBucketThresholdStr.toString(), e);
             }
         } else if (minBucketThresholdStr instanceof Number) {
             minBucketThreshold = ((Number) minBucketThresholdStr).intValue();
         }
 
-        Object maxBucketThresholdStr = params.get("max_bucket_threshold");
+        final Object maxBucketThresholdStr = params.get("max_bucket_threshold");
         if (maxBucketThresholdStr instanceof String) {
             try {
                 maxBucketThreshold = Integer.parseInt(maxBucketThresholdStr.toString());
-            } catch (NumberFormatException e) {
+            } catch (final NumberFormatException e) {
                 throw new ElasticsearchException("Invalid value of max_bucket_threshold: " + maxBucketThresholdStr.toString(), e);
             }
         } else if (maxBucketThresholdStr instanceof Number) {
@@ -145,14 +145,14 @@ public class StandardBuckets implements Buckets {
                     private static final long serialVersionUID = 1L;
 
                     @Override
-                    public SearchSourceBuilder rewrite(SearchSourceBuilder source) {
+                    public SearchSourceBuilder rewrite(final SearchSourceBuilder source) {
                         float shuffleWeight = 1;
                         if (params.get("shuffle_weight") instanceof Number) {
                             shuffleWeight = ((Number) params.get("shuffle_weight")).floatValue();
                         }
-                        Object shuffleBoostMode = params.get("shuffle_boost_mode");
+                        final Object shuffleBoostMode = params.get("shuffle_boost_mode");
 
-                        FunctionScoreQueryBuilder functionScoreQuery = QueryBuilders.functionScoreQuery(source.query(),
+                        final FunctionScoreQueryBuilder functionScoreQuery = QueryBuilders.functionScoreQuery(source.query(),
                                 new FunctionScoreQueryBuilder.FilterFunctionBuilder[] { new FunctionScoreQueryBuilder.FilterFunctionBuilder(
                                         ScoreFunctionBuilders.randomFunction(shuffleSeed.toString()).setWeight(shuffleWeight)) });
                         if (shuffleBoostMode != null) {
@@ -171,7 +171,7 @@ public class StandardBuckets implements Buckets {
     private Object getFieldValue(final SearchHit hit, final String fieldName) {
         final SearchHitField field = hit.getFields().get(fieldName);
         if (field == null) {
-            Map<String, Object> source = hit.getSourceAsMap();
+            final Map<String, Object> source = hit.getSourceAsMap();
             // TODO nested
             final Object object = source.get(fieldName);
             if (object instanceof String) {

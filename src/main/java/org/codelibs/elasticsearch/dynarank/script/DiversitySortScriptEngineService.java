@@ -45,20 +45,17 @@ public class DiversitySortScriptEngineService extends AbstractComponent implemen
         for (final Map.Entry<String, String> entry : bucketFactorySettings.entrySet()) {
             final String name = entry.getKey();
             try {
-                bucketFactories.put(name, AccessController.doPrivileged(new PrivilegedAction<BucketFactory>() {
-                    @Override
-                    public BucketFactory run() {
-                        try {
-                            @SuppressWarnings("unchecked")
-                            final Class<BucketFactory> clazz = (Class<BucketFactory>) Class.forName(entry.getValue());
-                            final Class<?>[] types = new Class<?>[] { Settings.class };
-                            final Constructor<BucketFactory> constructor = clazz.getConstructor(types);
+                bucketFactories.put(name, AccessController.doPrivileged((PrivilegedAction<BucketFactory>) () -> {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        final Class<BucketFactory> clazz = (Class<BucketFactory>) Class.forName(entry.getValue());
+                        final Class<?>[] types = new Class<?>[] { Settings.class };
+                        final Constructor<BucketFactory> constructor = clazz.getConstructor(types);
 
-                            final Object[] args = new Object[] { settings };
-                            return constructor.newInstance(args);
-                        } catch (final Exception e) {
-                            throw new ElasticsearchException(e);
-                        }
+                        final Object[] args = new Object[] { settings };
+                        return constructor.newInstance(args);
+                    } catch (final Exception e) {
+                        throw new ElasticsearchException(e);
                     }
                 }));
             } catch (final Exception e) {
@@ -78,33 +75,33 @@ public class DiversitySortScriptEngineService extends AbstractComponent implemen
     }
 
     @Override
-    public Object compile(String scriptName, String scriptSource, Map<String, String> params) {
+    public Object compile(final String scriptName, final String scriptSource, final Map<String, String> params) {
         return scriptSource;
     }
 
     @Override
-    public ExecutableScript executable(CompiledScript compiledScript, Map<String, Object> vars) {
+    public ExecutableScript executable(final CompiledScript compiledScript, final Map<String, Object> vars) {
         return new DiversitySortExecutableScript(vars, bucketFactories, logger);
     }
 
     @Override
-    public SearchScript search(CompiledScript compiledScript, SearchLookup lookup, Map<String, Object> vars) {
+    public SearchScript search(final CompiledScript compiledScript, final SearchLookup lookup, final Map<String, Object> vars) {
         throw new UnsupportedOperationException();
     }
 
     private static class DiversitySortExecutableScript implements ExecutableScript {
-        private Map<String, Object> vars;
-        private Map<String, BucketFactory> bucketFactories;
-        private Logger logger;
+        private final Map<String, Object> vars;
+        private final Map<String, BucketFactory> bucketFactories;
+        private final Logger logger;
 
-        public DiversitySortExecutableScript(Map<String, Object> vars, Map<String, BucketFactory> bucketFactories, Logger logger) {
+        public DiversitySortExecutableScript(final Map<String, Object> vars, final Map<String, BucketFactory> bucketFactories, final Logger logger) {
             this.vars = vars;
             this.bucketFactories = bucketFactories;
             this.logger = logger;
         }
 
         @Override
-        public void setNextVar(String name, Object value) {
+        public void setNextVar(final String name, final Object value) {
         }
 
         @Override

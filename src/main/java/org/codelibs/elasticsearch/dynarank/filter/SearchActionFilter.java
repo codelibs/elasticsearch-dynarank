@@ -19,7 +19,7 @@ public class SearchActionFilter extends AbstractComponent implements ActionFilte
 
     public static Setting<Integer> SETTING_DYNARANK_FILTER_ORDER = Setting.intSetting("dynarank.filter.order", 10, Property.NodeScope);
 
-    private int order;
+    private final int order;
 
     @Inject
     public SearchActionFilter(final Settings settings) {
@@ -34,8 +34,8 @@ public class SearchActionFilter extends AbstractComponent implements ActionFilte
     }
 
     @Override
-    public <Request extends ActionRequest, Response extends ActionResponse> void apply(Task task, String action, Request request,
-            ActionListener<Response> listener, ActionFilterChain<Request, Response> chain) {
+    public <Request extends ActionRequest, Response extends ActionResponse> void apply(final Task task, final String action, final Request request,
+            final ActionListener<Response> listener, final ActionFilterChain<Request, Response> chain) {
         if (!SearchAction.INSTANCE.name().equals(action)) {
             chain.proceed(task, action, request, listener);
             return;
