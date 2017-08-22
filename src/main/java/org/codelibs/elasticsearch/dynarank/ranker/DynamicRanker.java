@@ -61,19 +61,19 @@ public class DynamicRanker extends AbstractLifecycleComponent {
     public static final String DEFAULT_SCRIPT_LANG = "groovy";
 
     public static final Setting<String> SETTING_INDEX_DYNARANK_SCRIPT =
-            Setting.simpleString("index.dynarank.script_sort.script", Property.IndexScope);
+            Setting.simpleString("index.dynarank.script_sort.script", Property.IndexScope, Property.Dynamic);
 
     public static final Setting<String> SETTING_INDEX_DYNARANK_LANG =
-            Setting.simpleString("index.dynarank.script_sort.lang", Property.IndexScope);
+            Setting.simpleString("index.dynarank.script_sort.lang", Property.IndexScope, Property.Dynamic);
 
-    public static final Setting<String> SETTING_INDEX_DYNARANK_TYPE =
-            new Setting<>("index.dynarank.script_sort.type", s -> DEFAULT_SCRIPT_TYPE, Function.identity(), Property.IndexScope);
+    public static final Setting<String> SETTING_INDEX_DYNARANK_TYPE = new Setting<>("index.dynarank.script_sort.type",
+            s -> DEFAULT_SCRIPT_TYPE, Function.identity(), Property.IndexScope, Property.Dynamic);
 
     public static final Setting<Settings> SETTING_INDEX_DYNARANK_PARAMS =
-            Setting.groupSetting("index.dynarank.script_sort.params.", Property.IndexScope);
+            Setting.groupSetting("index.dynarank.script_sort.params.", Property.IndexScope, Property.Dynamic);
 
     public static final Setting<Integer> SETTING_INDEX_DYNARANK_REORDER_SIZE =
-            Setting.intSetting("index.dynarank.reorder_size", 100, Property.IndexScope);
+            Setting.intSetting("index.dynarank.reorder_size", 100, Property.IndexScope, Property.Dynamic);
 
     public static final Setting<TimeValue> SETTING_DYNARANK_CACHE_EXPIRE =
             Setting.timeSetting("dynarank.cache.expire", TimeValue.MINUS_ONE, Property.NodeScope);
