@@ -29,6 +29,8 @@ import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.io.stream.BytesStreamOutput;
+import org.elasticsearch.common.io.stream.NamedWriteableAwareStreamInput;
+import org.elasticsearch.common.io.stream.NamedWriteableRegistry;
 import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
@@ -93,6 +95,8 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
     private final ThreadPool threadPool;
 
+    private final NamedWriteableRegistry namedWriteableRegistry;
+
     private final TimeValue cleanInterval;
 
     private Reaper reaper;
@@ -105,12 +109,14 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
     @Inject
     public DynamicRanker(final Settings settings, final Client client, final ClusterService clusterService,
-            final ScriptService scriptService, final ThreadPool threadPool, final ActionFilters filters) {
+            final ScriptService scriptService, final ThreadPool threadPool, final ActionFilters filters,
+            final NamedWriteableRegistry namedWriteableRegistry) {
         super(settings);
         this.client = client;
         this.clusterService = clusterService;
         this.scriptService = scriptService;
         this.threadPool = threadPool;
+        this.namedWriteableRegistry = namedWriteableRegistry;
 
         logger.info("Initializing DynamicRanker");
 
@@ -307,7 +313,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading headers...");
                     }
-                    final StreamInput in = out.bytes().streamInput();
+                    final StreamInput in = new NamedWriteableAwareStreamInput(out.bytes().streamInput(), namedWriteableRegistry);
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading hits...");
                     }
