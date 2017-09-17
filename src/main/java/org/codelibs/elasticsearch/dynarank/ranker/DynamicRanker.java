@@ -346,14 +346,23 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                         }
                     }
                     final String scrollId = in.readOptionalString();
+                    /* tookInMillis = */ in.readVLong();
+                    final int skippedShards;
+                    if (in.getVersion().onOrAfter(Version.V_5_6_0_UNRELEASED)) {
+                        skippedShards = in.readVInt();
+                    } else {
+                        skippedShards = 0;
+                    }
                     final long tookInMillis = (System.nanoTime() - startTime) / 1000000;
 
                     if (logger.isDebugEnabled()) {
                         logger.debug("Creating new SearchResponse...");
                     }
                     @SuppressWarnings("unchecked")
-                    final Response newResponse = (Response) new SearchResponse(internalResponse, scrollId, totalShards, successfulShards,
-                            tookInMillis, shardFailures);
+                    final Response newResponse = (Response) new SearchResponse(
+                            internalResponse, scrollId, totalShards,
+                            successfulShards, skippedShards, tookInMillis,
+                            shardFailures);
                     listener.onResponse(newResponse);
 
                     if (logger.isDebugEnabled()) {
