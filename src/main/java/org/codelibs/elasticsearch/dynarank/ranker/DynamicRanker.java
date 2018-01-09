@@ -348,7 +348,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     final String scrollId = in.readOptionalString();
                     /* tookInMillis = */ in.readVLong();
                     final int skippedShards;
-                    if (in.getVersion().onOrAfter(Version.V_5_6_0_UNRELEASED)) {
+                    if (in.getVersion().onOrAfter(Version.V_5_6_0)) {
                         skippedShards = in.readVInt();
                     } else {
                         skippedShards = 0;
