@@ -7,22 +7,21 @@ import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.codelibs.elasticsearch.dynarank.script.bucket.impl.StandardBucketFactory;
 import org.elasticsearch.ElasticsearchException;
-import org.elasticsearch.common.component.AbstractComponent;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.script.CompiledScript;
-import org.elasticsearch.script.ExecutableScript;
-import org.elasticsearch.script.ScriptEngineService;
-import org.elasticsearch.script.SearchScript;
-import org.elasticsearch.search.lookup.SearchLookup;
+import org.elasticsearch.script.ScriptContext;
+import org.elasticsearch.script.ScriptEngine;
+import org.elasticsearch.search.SearchHit;
 
-public class DiversitySortScriptEngineService extends AbstractComponent implements ScriptEngineService {
+public class DiversitySortScriptEngine implements ScriptEngine {
+    private static final Logger logger = LogManager.getLogger(DiversitySortScriptEngine.class);
 
     public static final String SCRIPT_NAME = "dynarank_diversity_sort";
 
@@ -33,22 +32,19 @@ public class DiversitySortScriptEngineService extends AbstractComponent implemen
 
     private Map<String, BucketFactory> bucketFactories;
 
-    public DiversitySortScriptEngineService(final Settings settings) {
-        super(settings);
+    public DiversitySortScriptEngine(final Settings settings) {
 
         final Settings bucketSettings = SETTING_SCRIPT_DYNARANK_BUCKET.get(settings);
 
         bucketFactories = new HashMap<>();
         bucketFactories.put(STANDARD, new StandardBucketFactory(settings));
 
-        final Map<String, String> bucketFactorySettings = bucketSettings.getAsMap();
-        for (final Map.Entry<String, String> entry : bucketFactorySettings.entrySet()) {
-            final String name = entry.getKey();
+        for (final String name : bucketSettings.names()) {
             try {
                 bucketFactories.put(name, AccessController.doPrivileged((PrivilegedAction<BucketFactory>) () -> {
                     try {
                         @SuppressWarnings("unchecked")
-                        final Class<BucketFactory> clazz = (Class<BucketFactory>) Class.forName(entry.getValue());
+                        final Class<BucketFactory> clazz = (Class<BucketFactory>) Class.forName(bucketSettings.get(name));
                         final Class<?>[] types = new Class<?>[] { Settings.class };
                         final Constructor<BucketFactory> constructor = clazz.getConstructor(types);
 
@@ -75,37 +71,21 @@ public class DiversitySortScriptEngineService extends AbstractComponent implemen
     }
 
     @Override
-    public Object compile(final String scriptName, final String scriptSource, final Map<String, String> params) {
-        return scriptSource;
+    public <T> T compile(String name, String code, ScriptContext<T> context, Map<String, String> options) {
+        DynaRankScript.Factory compiled = params -> new DiversitySortExecutableScript(params, bucketFactories);
+        return context.factoryClazz.cast(compiled);
     }
 
-    @Override
-    public ExecutableScript executable(final CompiledScript compiledScript, final Map<String, Object> vars) {
-        return new DiversitySortExecutableScript(vars, bucketFactories, logger);
-    }
-
-    @Override
-    public SearchScript search(final CompiledScript compiledScript, final SearchLookup lookup, final Map<String, Object> vars) {
-        throw new UnsupportedOperationException();
-    }
-
-    private static class DiversitySortExecutableScript implements ExecutableScript {
-        private final Map<String, Object> vars;
+    private static class DiversitySortExecutableScript extends DynaRankScript {
         private final Map<String, BucketFactory> bucketFactories;
-        private final Logger logger;
 
-        public DiversitySortExecutableScript(final Map<String, Object> vars, final Map<String, BucketFactory> bucketFactories, final Logger logger) {
-            this.vars = vars;
+        public DiversitySortExecutableScript(final Map<String, Object> vars, final Map<String, BucketFactory> bucketFactories) {
+            super(vars);
             this.bucketFactories = bucketFactories;
-            this.logger = logger;
         }
 
         @Override
-        public void setNextVar(final String name, final Object value) {
-        }
-
-        @Override
-        public Object run() {
+        public SearchHit[] execute() {
             if (logger.isDebugEnabled()) {
                 logger.debug("Starting DiversitySortScript...");
             }
@@ -123,5 +103,4 @@ public class DiversitySortScriptEngineService extends AbstractComponent implemen
         }
 
     }
-
 }

@@ -11,13 +11,18 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import org.codelibs.elasticsearch.dynarank.script.DiversitySortScriptEngineService;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.codelibs.elasticsearch.dynarank.script.DiversitySortScriptEngine;
+import org.codelibs.elasticsearch.dynarank.script.DynaRankScript;
+import org.codelibs.elasticsearch.dynarank.script.DynaRankScript.Factory;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.Version;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.ActionResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.search.SearchResponse.Clusters;
 import org.elasticsearch.action.search.SearchResponseSections;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.ActionFilters;
@@ -37,9 +42,7 @@ import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
-import org.elasticsearch.script.CompiledScript;
 import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.SearchHit;
@@ -55,6 +58,8 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 public class DynamicRanker extends AbstractLifecycleComponent {
+
+    private static final Logger logger = LogManager.getLogger(DynamicRanker.class);
 
     private static DynamicRanker instance = null;
 
@@ -261,7 +266,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     return scriptInfos[0];
                 } else {
                     for (final ScriptInfo scriptInfo : scriptInfos) {
-                        if (!scriptInfo.getLang().equals(DiversitySortScriptEngineService.SCRIPT_NAME)) {
+                        if (!scriptInfo.getLang().equals(DiversitySortScriptEngine.SCRIPT_NAME)) {
                             return ScriptInfo.NO_SCRIPT_INFO;
                         }
                     }
@@ -333,6 +338,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     final int numReducePhases = in.getVersion().onOrAfter(Version.V_5_4_0) ? in.readVInt() : 1;
                     final SearchResponseSections internalResponse = new InternalSearchResponse(newHits, aggregations, suggest,
                             profileResults, timedOut, terminatedEarly, numReducePhases);
+
                     final int totalShards = in.readVInt();
                     final int successfulShards = in.readVInt();
                     final int size = in.readVInt();
@@ -344,6 +350,12 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                         for (int i = 0; i < shardFailures.length; i++) {
                             shardFailures[i] = readShardSearchFailure(in);
                         }
+                    }
+                    final Clusters clusters;
+                    if (in.getVersion().onOrAfter(Version.V_6_1_0)) {
+                        clusters = new Clusters(in.readVInt(), in.readVInt(), in.readVInt());
+                    } else {
+                        clusters = Clusters.EMPTY;
                     }
                     final String scrollId = in.readOptionalString();
                     /* tookInMillis = */ in.readVLong();
@@ -359,15 +371,13 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                         logger.debug("Creating new SearchResponse...");
                     }
                     @SuppressWarnings("unchecked")
-                    final Response newResponse = (Response) new SearchResponse(
-                            internalResponse, scrollId, totalShards,
-                            successfulShards, skippedShards, tookInMillis,
-                            shardFailures);
+                    final Response newResponse = (Response) new SearchResponse(internalResponse, scrollId, totalShards, successfulShards,
+                            skippedShards, tookInMillis, shardFailures, clusters);
                     listener.onResponse(newResponse);
 
                     if (logger.isDebugEnabled()) {
-                        logger.debug("Rewriting overhead time: {} - {} = {}ms", tookInMillis, searchResponse.getTookInMillis(),
-                                tookInMillis - searchResponse.getTookInMillis());
+                        logger.debug("Rewriting overhead time: {} - {} = {}ms", tookInMillis, searchResponse.getTook().getMillis(),
+                                tookInMillis - searchResponse.getTook().getMillis());
                     }
                 } catch (final RetrySearchException e) {
                     throw e;
@@ -388,7 +398,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
     private SearchHits doReorder(final SearchHits hits, final int from, final int size, final int reorderSize,
             final ScriptInfo scriptInfo) {
-        final SearchHit[] searchHits = hits.internalHits();
+        final SearchHit[] searchHits = hits.getHits();
         SearchHit[] newSearchHits;
         if (logger.isDebugEnabled()) {
             logger.debug("searchHits.length <= reorderSize: {}", searchHits.length <= reorderSize);
@@ -428,10 +438,10 @@ public class DynamicRanker extends AbstractLifecycleComponent {
         vars.put("searchHits", hits);
         vars.put("threadContext", threadPool.getThreadContext());
         vars.putAll(scriptInfo.getSettings());
-        final CompiledScript compiledScript = scriptService.compile(
+        final Factory factory = scriptService.compile(
                 new Script(scriptInfo.getScriptType(), scriptInfo.getLang(), scriptInfo.getScript(), Collections.emptyMap()),
-                ScriptContext.Standard.SEARCH);
-        return (SearchHit[]) scriptService.executable(compiledScript, vars).run();
+                DynaRankScript.CONTEXT);
+        return factory.newInstance(vars).execute();
     }
 
     private int getInt(final Object value, final int defaultValue) {
@@ -474,13 +484,11 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                 if (value != null) {
                     this.settings.put(name, value);
                 } else {
-                    this.settings.put(name, settings.getAsArray(name));
+                    this.settings.put(name, settings.getAsList(name));
                 }
             }
             if ("STORED".equalsIgnoreCase(scriptType)) {
                 this.scriptType = ScriptType.STORED;
-            } else if ("FILE".equalsIgnoreCase(scriptType)) {
-                this.scriptType = ScriptType.FILE;
             } else {
                 this.scriptType = ScriptType.INLINE;
             }

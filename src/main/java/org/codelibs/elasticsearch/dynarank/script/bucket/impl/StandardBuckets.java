@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codelibs.elasticsearch.dynarank.ranker.RetrySearchException;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
@@ -13,18 +14,17 @@ import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.bytes.BytesArray;
 import org.elasticsearch.common.bytes.BytesReference;
-import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.document.DocumentField;
 import org.elasticsearch.common.lucene.search.function.CombineFunction;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.functionscore.FunctionScoreQueryBuilder;
 import org.elasticsearch.index.query.functionscore.ScoreFunctionBuilders;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHitField;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 
 public class StandardBuckets implements Buckets {
 
-    private static Logger logger = ESLoggerFactory.getLogger("script.dynarank.sort.bucket.standard");
+    private static final Logger logger = LogManager.getLogger(StandardBuckets.class);
 
     protected BucketFactory bucketFactory;
 
@@ -154,7 +154,7 @@ public class StandardBuckets implements Buckets {
 
                         final FunctionScoreQueryBuilder functionScoreQuery = QueryBuilders.functionScoreQuery(source.query(),
                                 new FunctionScoreQueryBuilder.FilterFunctionBuilder[] { new FunctionScoreQueryBuilder.FilterFunctionBuilder(
-                                        ScoreFunctionBuilders.randomFunction(shuffleSeed.toString()).setWeight(shuffleWeight)) });
+                                        ScoreFunctionBuilders.randomFunction().seed(shuffleSeed.toString()).setWeight(shuffleWeight)) });
                         if (shuffleBoostMode != null) {
                             functionScoreQuery.boostMode(CombineFunction.fromString(shuffleBoostMode.toString()));
                         }
@@ -169,7 +169,7 @@ public class StandardBuckets implements Buckets {
     }
 
     private Object getFieldValue(final SearchHit hit, final String fieldName) {
-        final SearchHitField field = hit.getFields().get(fieldName);
+        final DocumentField field = hit.getFields().get(fieldName);
         if (field == null) {
             final Map<String, Object> source = hit.getSourceAsMap();
             // TODO nested

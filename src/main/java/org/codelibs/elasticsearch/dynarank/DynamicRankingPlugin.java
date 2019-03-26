@@ -7,7 +7,7 @@ import java.util.List;
 
 import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
-import org.codelibs.elasticsearch.dynarank.script.DiversitySortScriptEngineService;
+import org.codelibs.elasticsearch.dynarank.script.DiversitySortScriptEngine;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.settings.Setting;
@@ -15,18 +15,25 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.ScriptPlugin;
-import org.elasticsearch.script.ScriptEngineService;
+import org.elasticsearch.script.ScriptContext;
+import org.elasticsearch.script.ScriptEngine;
 
 public class DynamicRankingPlugin extends Plugin implements ActionPlugin, ScriptPlugin {
 
-    @Override
-    public ScriptEngineService getScriptEngineService(final Settings settings) {
-        return new DiversitySortScriptEngineService(settings);
+    private Settings settings;
+
+    public DynamicRankingPlugin(final Settings settings) {
+        this.settings = settings;
     }
 
     @Override
-    public List<Class<? extends ActionFilter>> getActionFilters() {
-        return Arrays.asList(SearchActionFilter.class);
+    public ScriptEngine getScriptEngine(Settings settings, Collection<ScriptContext<?>> contexts) {
+        return new DiversitySortScriptEngine(settings);
+    }
+
+    @Override
+    public List<ActionFilter> getActionFilters() {
+        return Arrays.asList(new SearchActionFilter(settings));
     }
 
     @Override
