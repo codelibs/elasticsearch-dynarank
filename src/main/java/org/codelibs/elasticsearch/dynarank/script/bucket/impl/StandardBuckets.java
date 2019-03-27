@@ -1,7 +1,6 @@
 package org.codelibs.elasticsearch.dynarank.script.bucket.impl;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -50,11 +49,11 @@ public class StandardBuckets implements Buckets {
         final float[] diversityThresholds = parseFloats(thresholds);
         final Object[][] ignoredObjGroups = new Object[diversityFields.length][];
         for (int i = 0; i < diversityFields.length; i++) {
-            ignoredObjGroups[i] = (Object[]) params.get(diversityFields[i] + "_ignored_objects");
+            ignoredObjGroups[i] = (String[]) params.get(diversityFields[i] + "_ignored_objects");
         }
 
         if (logger.isDebugEnabled()) {
-            logger.debug("diversity_fields: {}, : diversity_thresholds{}", Arrays.toString(diversityFields), Arrays.toString(thresholds));
+            logger.debug("diversity_fields: {}, : diversity_thresholds{}", diversityFields, thresholds);
         }
         int maxNumOfBuckets = 0;
         int minNumOfBuckets = Integer.MAX_VALUE;

@@ -479,13 +479,9 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             this.lang = lang;
             this.reorderSize = reorderSize;
             this.settings = new HashMap<>();
-            for (final String name : settings.names()) {
-                final String value = settings.get(name);
-                if (value != null) {
-                    this.settings.put(name, value);
-                } else {
-                    this.settings.put(name, settings.getAsList(name));
-                }
+            for (final String name : settings.keySet()) {
+                final List<String> list = settings.getAsList(name);
+                this.settings.put(name, list.toArray(new String[list.size()]));
             }
             if ("STORED".equalsIgnoreCase(scriptType)) {
                 this.scriptType = ScriptType.STORED;

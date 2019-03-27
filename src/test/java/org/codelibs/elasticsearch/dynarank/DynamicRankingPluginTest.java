@@ -71,9 +71,9 @@ public class DynamicRankingPluginTest {
         final String type = "data";
         CreateIndexResponse createIndexResponse = runner.createIndex(index,
                 Settings.builder().put(DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE.getKey(), 100)
-                        .put(DynamicRanker.SETTING_INDEX_DYNARANK_LANG.getKey(), "groovy")
+                        .put(DynamicRanker.SETTING_INDEX_DYNARANK_LANG.getKey(), "painless")
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_SCRIPT.getKey(),
-                                "searchHits.sort {s1, s2 -> s2.getSourceAsMap().get('counter') - s1.getSourceAsMap().get('counter')} as org.elasticsearch.search.SearchHit[]")
+                                "Arrays.sort(hits, (s1,s2)-> s2.getSourceAsMap().get(\"counter\") - s1.getSourceAsMap().get(\"counter\"))")
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_PARAMS.getKey() + "foo", "bar").build());
         assertTrue(createIndexResponse.isAcknowledged());
         AcknowledgedResponse aliasesResponse = runner.updateAlias(alias, new String[] { index }, null);
@@ -132,9 +132,9 @@ public class DynamicRankingPluginTest {
         final String type = "data";
         CreateIndexResponse createIndexResponse = runner.createIndex(index,
                 Settings.builder().put(DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE.getKey(), 100)
-                        .put(DynamicRanker.SETTING_INDEX_DYNARANK_LANG.getKey(), "groovy")
+                        .put(DynamicRanker.SETTING_INDEX_DYNARANK_LANG.getKey(), "painless")
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_SCRIPT.getKey(),
-                                "searchHits.sort {s1, s2 -> s2.getSourceAsMap().get('counter') - s1.getSourceAsMap().get('counter')} as org.elasticsearch.search.SearchHit[]")
+                                "Arrays.sort(hits, (s1,s2)-> s2.getSourceAsMap().get(\"counter\") - s1.getSourceAsMap().get(\"counter\"))")
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_PARAMS.getKey() + "foo", "bar").build());
         assertTrue(createIndexResponse.isAcknowledged());
         AcknowledgedResponse aliasesResponse = runner.updateAlias(alias, new String[] { index }, null);
@@ -353,19 +353,18 @@ public class DynamicRankingPluginTest {
 
                     // id
                     .startObject("id")//
-                    .field("type", "string")//
-                    .field("index", "not_analyzed")//
+                    .field("type", "keyword")//
                     .endObject()//
 
                     // msg
                     .startObject("msg")//
-                    .field("type", "string")//
+                    .field("type", "text")//
                     .field("copy_to", "minhash_value")//
                     .endObject()//
 
                     // category
                     .startObject("category")//
-                    .field("type", "string")//
+                    .field("type", "keyword")//
                     .endObject()//
 
                     // order
@@ -471,13 +470,12 @@ public class DynamicRankingPluginTest {
 
                     // id
                     .startObject("id")//
-                    .field("type", "string")//
-                    .field("index", "not_analyzed")//
+                    .field("type", "keyword")//
                     .endObject()//
 
                     // msg
                     .startObject("msg")//
-                    .field("type", "string")//
+                    .field("type", "text")//
                     .field("copy_to", "minhash_value")//
                     .endObject()//
 
@@ -683,13 +681,12 @@ public class DynamicRankingPluginTest {
 
                     // id
                     .startObject("id")//
-                    .field("type", "string")//
-                    .field("index", "not_analyzed")//
+                    .field("type", "keyword")//
                     .endObject()//
 
                     // msg
                     .startObject("msg")//
-                    .field("type", "string")//
+                    .field("type", "text")//
                     .field("copy_to", "minhash_value")//
                     .endObject()//
 
@@ -831,7 +828,7 @@ public class DynamicRankingPluginTest {
         runner.createIndex(index,
                 Settings.builder().put(DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE.getKey(), 100)
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_SCRIPT.getKey(),
-                                "searchHits.sort {s1, s2 -> s2.getSourceAsMap().get('counter') - s1.getSourceAsMap().get('counter')} as org.elasticsearch.search.SearchHit[]")
+                                "Arrays.sort(hits, (s1,s2)-> s2.getSourceAsMap().get(\"counter\") - s1.getSourceAsMap().get(\"counter\"))")
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_PARAMS.getKey() + "foo", "bar").build());
 
         for (int i = 1; i <= 1000; i++) {
@@ -877,20 +874,18 @@ public class DynamicRankingPluginTest {
 
                     // id
                     .startObject("id")//
-                    .field("type", "string")//
-                    .field("index", "not_analyzed")//
+                    .field("type", "keyword")//
                     .endObject()//
 
                     // msg
                     .startObject("msg")//
-                    .field("type", "string")//
+                    .field("type", "text")//
                     .field("copy_to", "minhash_value")//
                     .endObject()//
 
                     // category
                     .startObject("category")//
-                    .field("type", "string")//
-                    .field("index", "not_analyzed")//
+                    .field("type", "keyword")//
                     .endObject()//
 
                     // order

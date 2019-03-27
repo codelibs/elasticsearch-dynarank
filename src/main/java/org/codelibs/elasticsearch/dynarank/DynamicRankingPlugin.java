@@ -8,6 +8,7 @@ import java.util.List;
 import org.codelibs.elasticsearch.dynarank.filter.SearchActionFilter;
 import org.codelibs.elasticsearch.dynarank.ranker.DynamicRanker;
 import org.codelibs.elasticsearch.dynarank.script.DiversitySortScriptEngine;
+import org.codelibs.elasticsearch.dynarank.script.DynaRankScript;
 import org.elasticsearch.action.support.ActionFilter;
 import org.elasticsearch.common.component.LifecycleComponent;
 import org.elasticsearch.common.settings.Setting;
@@ -41,6 +42,11 @@ public class DynamicRankingPlugin extends Plugin implements ActionPlugin, Script
         final Collection<Class<? extends LifecycleComponent>> services = new ArrayList<>();
         services.add(DynamicRanker.class);
         return services;
+    }
+
+    @Override
+    public List<ScriptContext<?>> getContexts() {
+        return Arrays.asList(DynaRankScript.CONTEXT);
     }
 
     @Override
