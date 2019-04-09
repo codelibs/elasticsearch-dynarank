@@ -68,7 +68,7 @@ curl -s -H "Content-Type: application/json" -XPUT "$ES_HOST:$ES_PORT/sample" -d 
         "reorder_size" : 100,
         "script_sort" : {
           "lang" : "painless",
-          "script" : "return searchHits",
+          "script" : "java.util.Arrays.sort(params.searchHists, (s1,s2)-> s2.getSourceAsMap().get(\"counter\") - s1.getSourceAsMap().get(\"counter\"))",
           "params" : {
             "foo" : "bar"
           }
@@ -78,7 +78,6 @@ curl -s -H "Content-Type: application/json" -XPUT "$ES_HOST:$ES_PORT/sample" -d 
   }
 }
 '
-# "script" : "hits.sort((s1,s2)-> s2.getSourceAsMap().get(\"counter\") - s1.getSourceAsMap().get(\"counter\"))",
 
 
 count=1
@@ -88,7 +87,6 @@ while [ $count -le 1000 ] ; do
 done
 curl -s -H "Content-Type: application/json" -XPOST "$ES_HOST:$ES_PORT/_refresh" > /dev/null
 curl -s "$ES_HOST:$ES_PORT/_cat/indices?v"
-exit
 
 echo "=== Finish Testing ==="
 

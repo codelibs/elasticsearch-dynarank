@@ -6,12 +6,15 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.search.SearchHit;
 
 public abstract class DynaRankScript {
-    public static final String[] PARAMETERS = {};
 
-    protected final Map<String, Object> vars;
+    protected final Map<String, Object> params;
 
-    public DynaRankScript(final Map<String, Object> vars) {
-        this.vars = vars;
+    public DynaRankScript(final Map<String, Object> params) {
+        this.params = params;
+    }
+
+    public Map<String, Object> getParams() {
+        return params;
     }
 
     public abstract SearchHit[] execute();
@@ -20,5 +23,6 @@ public abstract class DynaRankScript {
         DynaRankScript newInstance(Map<String, Object> params);
     }
 
+    public static final String[] PARAMETERS = {};
     public static final ScriptContext<Factory> CONTEXT = new ScriptContext<>("dynarank", Factory.class);
 }

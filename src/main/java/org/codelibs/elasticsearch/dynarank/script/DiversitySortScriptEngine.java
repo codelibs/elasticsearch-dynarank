@@ -89,7 +89,7 @@ public class DiversitySortScriptEngine implements ScriptEngine {
             if (logger.isDebugEnabled()) {
                 logger.debug("Starting DiversitySortScript...");
             }
-            Object bucketFactoryName = vars.get("bucket_factory");
+            Object bucketFactoryName = params.get("bucket_factory");
             if (bucketFactoryName == null) {
                 bucketFactoryName = STANDARD;
             }
@@ -98,7 +98,7 @@ public class DiversitySortScriptEngine implements ScriptEngine {
                 throw new ElasticsearchException("bucket_factory is invalid: " + bucketFactoryName);
             }
 
-            final Buckets buckets = bucketFactory.createBucketList(vars);
+            final Buckets buckets = bucketFactory.createBucketList(params);
             return buckets.getHits();
         }
 
