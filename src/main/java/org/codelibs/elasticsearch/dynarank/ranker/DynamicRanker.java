@@ -65,7 +65,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
     public static final String DEFAULT_SCRIPT_TYPE = "inline";
 
-    public static final String DEFAULT_SCRIPT_LANG = "groovy";
+    public static final String DEFAULT_SCRIPT_LANG = "painless";
 
     public static final Setting<String> SETTING_INDEX_DYNARANK_SCRIPT =
             Setting.simpleString("index.dynarank.script_sort.script", Property.IndexScope, Property.Dynamic);
@@ -116,7 +116,6 @@ public class DynamicRanker extends AbstractLifecycleComponent {
     public DynamicRanker(final Settings settings, final Client client, final ClusterService clusterService,
             final ScriptService scriptService, final ThreadPool threadPool, final ActionFilters filters,
             final NamedWriteableRegistry namedWriteableRegistry) {
-        super(settings);
         this.client = client;
         this.clusterService = clusterService;
         this.scriptService = scriptService;
@@ -139,7 +138,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
     protected void doStart() throws ElasticsearchException {
         instance = this;
         reaper = new Reaper();
-        threadPool.schedule(cleanInterval, ThreadPool.Names.SAME, reaper);
+        threadPool.schedule(reaper, cleanInterval, ThreadPool.Names.SAME);
     }
 
     @Override

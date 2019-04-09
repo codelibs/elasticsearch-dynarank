@@ -6,6 +6,8 @@ import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.search.SearchHit;
 
 public abstract class DynaRankScript {
+    public static final String[] PARAMETERS = {};
+
     protected final Map<String, Object> vars;
 
     public DynaRankScript(final Map<String, Object> vars) {
