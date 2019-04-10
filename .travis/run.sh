@@ -68,7 +68,7 @@ curl -s -H "Content-Type: application/json" -XPUT "$ES_HOST:$ES_PORT/sample" -d 
         "reorder_size" : 100,
         "script_sort" : {
           "lang" : "painless",
-          "script" : "java.util.Arrays.sort(params.searchHists, (s1,s2)-> s2.getSourceAsMap().get(\"counter\") - s1.getSourceAsMap().get(\"counter\"))",
+          "script" : "def l = Arrays.asList(params.searchHits); l.sort((s1,s2) -> s2.getSourceAsMap().get(\"counter\") - s1.getSourceAsMap().get(\"counter\")); l.toArray(new org.elasticsearch.search.SearchHit[l.size()])",
           "params" : {
             "foo" : "bar"
           }
@@ -79,7 +79,6 @@ curl -s -H "Content-Type: application/json" -XPUT "$ES_HOST:$ES_PORT/sample" -d 
 }
 '
 
-
 count=1
 while [ $count -le 1000 ] ; do
   curl -s -H "Content-Type: application/json" -XPOST "$ES_HOST:$ES_PORT/sample/_doc/$count" -d "{\"id\":\"$count\",\"msg\":\"test $count\",\"counter\":$count}" > /dev/null
@@ -87,6 +86,23 @@ while [ $count -le 1000 ] ; do
 done
 curl -s -H "Content-Type: application/json" -XPOST "$ES_HOST:$ES_PORT/_refresh" > /dev/null
 curl -s "$ES_HOST:$ES_PORT/_cat/indices?v"
+
+echo "sort by script"
+curl -s -o $TMP_FILE -H "Content-Type: application/json" -XPOST "$ES_HOST:$ES_PORT/sample/_doc/_search" \
+  -d '{"query":{"match_all":{}},"sort":[{"counter":{"order":"asc"}}]}'
+cat $TMP_FILE | jq '.'
+RET=`cat $TMP_FILE | jq '.hits.total'`
+if [ "x$RET" != "x1000" ] ; then
+  echo "[ERROR] hits.total is not 100."
+  kill $ES_PID
+  exit 1
+fi
+RET=`cat $TMP_FILE | jq '.hits.hits[0]._id' | sed -e "s/\"//g"`
+if [ "x$RET" != "x100" ] ; then
+  echo "[ERROR] hits.total is not 100."
+  kill $ES_PID
+  exit 1
+fi
 
 echo "=== Finish Testing ==="
 

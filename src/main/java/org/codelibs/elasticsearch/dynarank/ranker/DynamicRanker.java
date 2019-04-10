@@ -563,7 +563,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             } catch (final Exception e) {
                 logger.warn("Failed to update a cache for ScriptInfo.", e);
             } finally {
-                threadPool.schedule(cleanInterval, ThreadPool.Names.GENERIC, reaper);
+                threadPool.schedule(reaper, cleanInterval, ThreadPool.Names.GENERIC);
             }
 
         }
