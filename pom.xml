@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>org.codelibs</groupId>
 	<artifactId>elasticsearch-dynarank</artifactId>
-	<version>6.7.0-SNAPSHOT</version>
+	<version>6.7.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<description>This plugin re-orders top N documents in a search results.</description>
 	<inceptionYear>2011</inceptionYear>
