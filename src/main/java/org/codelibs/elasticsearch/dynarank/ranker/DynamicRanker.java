@@ -407,7 +407,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             if (from >= targets.length) {
                 newSearchHits = new SearchHit[0];
                 if (logger.isDebugEnabled()) {
-                    logger.debug("Invalid argument: " + from + " >= " + targets.length);
+                    logger.debug("Invalid argument: {} >= {}", from, targets.length);
                 }
             } else {
                 int end = from + size;
@@ -537,7 +537,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     if (indexMD == null) {
                         scriptInfoCache.invalidate(index);
                         if (logger.isDebugEnabled()) {
-                            logger.debug("Invalidate cache for " + index);
+                            logger.debug("Invalidate cache for {}", index);
                         }
                         continue;
                     }
@@ -547,7 +547,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     if (script == null || script.length() == 0) {
                         scriptInfoCache.invalidate(index);
                         if (logger.isDebugEnabled()) {
-                            logger.debug("Invalidate cache for " + index);
+                            logger.debug("Invalidate cache for {}", index);
                         }
                         continue;
                     }
@@ -556,7 +556,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                             SETTING_INDEX_DYNARANK_TYPE.get(indexSettings), SETTING_INDEX_DYNARANK_PARAMS.get(indexSettings),
                             SETTING_INDEX_DYNARANK_REORDER_SIZE.get(indexSettings));
                     if (logger.isDebugEnabled()) {
-                        logger.debug("Reload cache for " + index + " => " + scriptInfo);
+                        logger.debug("Reload cache for {} => {}", index, scriptInfo);
                     }
                     scriptInfoCache.put(index, scriptInfo);
                 }
