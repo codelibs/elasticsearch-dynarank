@@ -17,12 +17,12 @@ public abstract class DynaRankScript {
         return params;
     }
 
-    public abstract SearchHit[] execute();
+    public abstract SearchHit[] execute(final SearchHit[] searchHits);
 
     public interface Factory {
-        DynaRankScript newInstance(Map<String, Object> params);
+        DynaRankScript newInstance(final Map<String, Object> params);
     }
 
-    public static final String[] PARAMETERS = {};
+    public static final String[] PARAMETERS = {"searchHits"};
     public static final ScriptContext<Factory> CONTEXT = new ScriptContext<>("dynarank", Factory.class);
 }

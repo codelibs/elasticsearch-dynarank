@@ -35,9 +35,9 @@ public class StandardBuckets implements Buckets {
     }
 
     @Override
-    public SearchHit[] getHits() {
-        SearchHit[] searchHits = (SearchHit[]) params.get("searchHits");
-        final int length = searchHits.length;
+    public SearchHit[] getHits(final SearchHit[] searchHits) {
+        SearchHit[] hits = searchHits;
+        final int length = hits.length;
         final String[] diversityFields = (String[]) params.get("diversity_fields");
         if (diversityFields == null) {
             throw new ElasticsearchException("diversity_fields is null.");
@@ -64,13 +64,13 @@ public class StandardBuckets implements Buckets {
             final List<Bucket> bucketList = new ArrayList<>();
             for (int j = 0; j < length; j++) {
                 boolean insert = false;
-                final SearchHit hit = searchHits[j];
+                final SearchHit hit = hits[j];
                 final Object value = getFieldValue(hit, diversityField);
                 if (value == this) {
                     if (logger.isDebugEnabled()) {
                         logger.debug("diversityField {} does not exist. Reranking is skipped.", diversityField);
                     }
-                    return searchHits;
+                    return hits;
                 }
                 if (ignoredObjs != null) {
                     for (final Object ignoredObj : ignoredObjs) {
@@ -100,7 +100,7 @@ public class StandardBuckets implements Buckets {
             if (bucketList.size() < minNumOfBuckets) {
                 minNumOfBuckets = bucketList.size();
             }
-            searchHits = createHits(length, bucketList);
+            hits = createHits(length, bucketList);
         }
 
         int minBucketThreshold = 0;
@@ -130,7 +130,7 @@ public class StandardBuckets implements Buckets {
 
         if (logger.isDebugEnabled()) {
             logger.debug("searchHits: {}, minNumOfBuckets: {}, maxNumOfBuckets: {}, minBucketSize: {}, maxBucketThreshold: {}",
-                    searchHits.length, minNumOfBuckets, maxNumOfBuckets, minBucketThreshold, maxBucketThreshold);
+                    hits.length, minNumOfBuckets, maxNumOfBuckets, minBucketThreshold, maxBucketThreshold);
         }
 
         if ((minBucketThreshold > 0 && minBucketThreshold >= minNumOfBuckets)
@@ -164,7 +164,7 @@ public class StandardBuckets implements Buckets {
             }
         }
 
-        return searchHits;
+        return hits;
     }
 
     private Object getFieldValue(final SearchHit hit, final String fieldName) {

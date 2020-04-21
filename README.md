@@ -13,22 +13,15 @@ Elasticsearch has [rescoring](http://www.elasticsearch.org/guide/en/elasticsearc
 
 ## Version
 
-[Versions in Maven Repository](http://central.maven.org/maven2/org/codelibs/elasticsearch-dynarank/)
+[Versions in Maven Repository](https://repo1.maven.org/maven2/org/codelibs/elasticsearch-dynarank/)
 
 ### Issues/Questions
 
 Please file an [issue](https://github.com/codelibs/elasticsearch-dynarank/issues "issue").
-(Japanese forum is [here](https://github.com/codelibs/codelibs-ja-forum "here").)
 
 ## Installation
 
-### For 5.x
-
-    $ $ES_HOME/bin/elasticsearch-plugin install org.codelibs:elasticsearch-dynarank:5.5.1
-
-### For 2.x
-
-    $ $ES_HOME/bin/plugin install org.codelibs/elasticsearch-dynarank/2.4.0
+    $ $ES_HOME/bin/elasticsearch-plugin install org.codelibs:elasticsearch-dynarank:7.6.0
 
 ## Getting Started
 
@@ -36,19 +29,15 @@ Please file an [issue](https://github.com/codelibs/elasticsearch-dynarank/issues
 
 Create "sample" index:
 
-    $ COUNT=1;while [ $COUNT -le 100 ] ; do curl -XPOST 'localhost:9200/sample/data' -d "{\"message\":\"Hello $COUNT\",\"counter\":$COUNT}";COUNT=`expr $COUNT + 1`; done
+    $ COUNT=1;while [ $COUNT -le 100 ] ; do curl -XPOST 'localhost:9200/sample/_doc/' -d "{\"message\":\"Hello $COUNT\",\"counter\":$COUNT}";COUNT=`expr $COUNT + 1`; done
 
 100 documents are inserted. You can see 10 documents by an ascending order of "counter" field:
 
-    $ curl -XPOST "http://127.0.0.1:9200/sample/data/_search" -d'
+    $ curl -XPOST "http://127.0.0.1:9200/sample/_search" -d'
     {
        "query": {
           "match_all": {}
        },
-       "fields": [
-          "counter",
-          "_source"
-       ],
        "sort": [
           {
              "counter": {
@@ -62,12 +51,20 @@ Create "sample" index:
 
 DynaRank plugin is enabled if your re-order script is set to the target index:
 
-    $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.script_sort.script=searchHits.sort%20%7Bs1%2C%20s2%20-%3E%20s2.getSource%28%29.get%28%27counter%27%29%20-%20s1.getSource%28%29.get%28%27counter%27%29%7D%20as%20org.elasticsearch.search.SearchHit%5B%5D'
-    $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.reorder_size=5'
-
-The above script is:
-
-    searchHits.sort {s1, s2 -> s2.getSource().get('counter').value() - s1.getSource().get('counter').value()} as org.elasticsearch.search.SearchHit[]
+```
+$ curl -s -XPUT -H 'Content-Type: application/json' "localhost:9200/sample/_settings" -d"
+{
+  \"index\" : {
+    \"dynarank\":{
+      \"script_sort\":{
+        \"lang\": \"painless\",
+        \"script\": \"def l=new ArrayList();for(def h:searchHits){l.add(h);}return l.stream().sorted((s1,s2)->s2.getSourceAsMap().get('counter')-s1.getSourceAsMap().get('counter')).toArray(n->new org.elasticsearch.search.SearchHit[n])\"
+      },
+      \"reorder_size\": 5
+     }
+  }
+}"
+```
 
 This setting sorts top 5 documents (5 is given by reorder\_size) by a descending order of "counter" field, and others are by an ascending order.
 
@@ -75,7 +72,18 @@ This setting sorts top 5 documents (5 is given by reorder\_size) by a descending
 
 Set an empty value to index.dynarank.script\_sort.script:
 
-    $ curl -XPUT 'localhost:9200/sample/_settings?index.dynarank.script_sort.script='
+```
+$ curl -s -XPUT -H 'Content-Type: application/json' "localhost:9200/sample/_settings" -d"
+{
+  \"index\" : {
+    \"dynarank\":{
+      \"script_sort\":{
+        \"script\": \"\"
+      }
+     }
+  }
+}"
+```
 
 ## References
 
@@ -85,7 +93,7 @@ DynaRank plugin provides a sort feature for a diversity problem.
 The sort script is dynarank\_diversity\_sort.
 The configuration is below:
 
-    curl -XPUT 'localhost:9200/sample/_settings' -d '
+    curl -XPUT -H 'Content-Type: application/json' 'localhost:9200/sample/_settings' -d '
     {
       "index" : {
         "dynarank":{

@@ -4,6 +4,6 @@ import org.elasticsearch.search.SearchHit;
 
 public interface Buckets {
 
-    SearchHit[] getHits();
+    SearchHit[] getHits(final SearchHit[] searchHit);
 
 }

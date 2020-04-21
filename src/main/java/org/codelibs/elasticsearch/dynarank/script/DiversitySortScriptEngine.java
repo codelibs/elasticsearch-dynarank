@@ -4,8 +4,10 @@ import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -85,7 +87,7 @@ public class DiversitySortScriptEngine implements ScriptEngine {
         }
 
         @Override
-        public SearchHit[] execute() {
+        public SearchHit[] execute(SearchHit[] searchHit) {
             if (logger.isDebugEnabled()) {
                 logger.debug("Starting DiversitySortScript...");
             }
@@ -99,8 +101,13 @@ public class DiversitySortScriptEngine implements ScriptEngine {
             }
 
             final Buckets buckets = bucketFactory.createBucketList(params);
-            return buckets.getHits();
+            return buckets.getHits(searchHit);
         }
 
+    }
+
+    @Override
+    public Set<ScriptContext<?>> getSupportedContexts() {
+        return Collections.singleton(DynaRankScript.CONTEXT);
     }
 }

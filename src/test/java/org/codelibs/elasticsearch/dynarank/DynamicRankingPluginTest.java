@@ -47,7 +47,9 @@ public class DynamicRankingPluginTest {
                 settingsBuilder.put("dynarank.cache.clean_interval", "1s");
                 settingsBuilder.put("http.cors.enabled", true);
                 settingsBuilder.put("http.cors.allow-origin", "*");
-                settingsBuilder.putList("discovery.zen.ping.unicast.hosts", "localhost:9301-9310");
+                settingsBuilder.put("discovery.type", "single-node");
+                // settingsBuilder.putList("discovery.seed_hosts", "127.0.0.1:9301");
+                // settingsBuilder.putList("cluster.initial_master_nodes", "127.0.0.1:9301");
             }
         }).build(newConfigs().numOfNode(1).clusterName(clusterName).pluginTypes(
                 "org.codelibs.elasticsearch.dynarank.DynamicRankingPlugin" + ",org.codelibs.elasticsearch.minhash.MinHashPlugin"));
@@ -90,7 +92,7 @@ public class DynamicRankingPluginTest {
 //            final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
 //                    .addSort("counter", SortOrder.ASC).execute().actionGet();
 //            final SearchHits hits = searchResponse.getHits();
-//            assertEquals(1000, hits.getTotalHits());
+//            assertEquals(1000, hits.getTotalHits().value);
 //            assertEquals(10, hits.getHits().length);
 //            assertEquals("100", hits.getHits()[0].getId());
 //            assertEquals("91", hits.getHits()[9].getId());
@@ -107,7 +109,7 @@ public class DynamicRankingPluginTest {
 //            final SearchResponse searchResponse = client.prepareSearch(alias).setQuery(QueryBuilders.matchAllQuery())
 //                    .addSort("counter", SortOrder.ASC).execute().actionGet();
 //            final SearchHits hits = searchResponse.getHits();
-//            assertEquals(1000, hits.getTotalHits());
+//            assertEquals(1000, hits.getTotalHits().value);
 //            assertEquals(10, hits.getHits().length);
 //            assertEquals("100", hits.getHits()[0].getId());
 //            assertEquals("91", hits.getHits()[9].getId());
@@ -165,7 +167,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("100", hits.getHits()[0].getId());
             assertEquals("91", hits.getHits()[9].getId());
@@ -175,7 +177,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).setFrom(50).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("50", hits.getHits()[0].getId());
             assertEquals("41", hits.getHits()[9].getId());
@@ -185,7 +187,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).setFrom(90).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("10", hits.getHits()[0].getId());
             assertEquals("1", hits.getHits()[9].getId());
@@ -195,7 +197,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).setFrom(91).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("9", hits.getHits()[0].getId());
             assertEquals("1", hits.getHits()[8].getId());
@@ -206,7 +208,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).setFrom(95).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("5", hits.getHits()[0].getId());
             assertEquals("1", hits.getHits()[4].getId());
@@ -218,7 +220,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).setFrom(99).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("1", hits.getHits()[0].getId());
             assertEquals("101", hits.getHits()[1].getId());
@@ -229,7 +231,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).setFrom(100).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("101", hits.getHits()[0].getId());
             assertEquals("110", hits.getHits()[9].getId());
@@ -239,7 +241,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addSort("counter", SortOrder.ASC).setFrom(0).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(20, hits.getTotalHits());
+            assertEquals(20, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("20", hits.getHits()[0].getId());
             assertEquals("11", hits.getHits()[9].getId());
@@ -249,7 +251,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addSort("counter", SortOrder.ASC).setFrom(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(20, hits.getTotalHits());
+            assertEquals(20, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("10", hits.getHits()[0].getId());
             assertEquals("1", hits.getHits()[9].getId());
@@ -259,7 +261,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addSort("counter", SortOrder.ASC).setFrom(11).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(20, hits.getTotalHits());
+            assertEquals(20, hits.getTotalHits().value);
             assertEquals(9, hits.getHits().length);
             assertEquals("9", hits.getHits()[0].getId());
             assertEquals("1", hits.getHits()[8].getId());
@@ -269,7 +271,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.rangeQuery("counter"))
                     .addSort("counter", SortOrder.ASC).setFrom(0).setSize(101).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(101, hits.getHits().length);
             assertEquals("100", hits.getHits()[0].getId());
             assertEquals("1", hits.getHits()[99].getId());
@@ -280,7 +282,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addSort("counter", SortOrder.ASC).setFrom(0).setSize(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(20, hits.getTotalHits());
+            assertEquals(20, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("20", hits.getHits()[0].getId());
             assertEquals("11", hits.getHits()[9].getId());
@@ -290,7 +292,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addSort("counter", SortOrder.ASC).setFrom(15).setSize(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(20, hits.getTotalHits());
+            assertEquals(20, hits.getTotalHits().value);
             assertEquals(5, hits.getHits().length);
             assertEquals("5", hits.getHits()[0].getId());
             assertEquals("1", hits.getHits()[4].getId());
@@ -300,7 +302,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addSort("counter", SortOrder.ASC).setFrom(20).setSize(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(20, hits.getTotalHits());
+            assertEquals(20, hits.getTotalHits().value);
             assertEquals(0, hits.getHits().length);
         }
 
@@ -308,21 +310,21 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.rangeQuery("counter").from(0).to(20))
                     .addSort("counter", SortOrder.ASC).setFrom(21).setSize(10).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(20, hits.getTotalHits());
+            assertEquals(20, hits.getTotalHits().value);
             assertEquals(0, hits.getHits().length);
         }
 
         {
             final SearchResponse searchResponse = runner.search(index, type, QueryBuilders.queryStringQuery("msg:foo"), null, 0, 10);
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(0, hits.getTotalHits());
+            assertEquals(0, hits.getTotalHits().value);
         }
 
         for (int i = 0; i < 1000; i++) {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("100", hits.getHits()[0].getId());
             assertEquals("91", hits.getHits()[9].getId());
@@ -333,7 +335,7 @@ public class DynamicRankingPluginTest {
     public void diversityMultiSort() throws Exception {
 
         final String index = "test_index";
-        final String type = "test_type";
+        final String type = "_doc";
 
         {
             // create an index
@@ -400,11 +402,11 @@ public class DynamicRankingPluginTest {
         insertTestData(index, type, 10, "aaa bbb fff", "cat1");
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery())
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value", "category")
                     .setFrom(0).setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(10, searchHits.getTotalHits());
+            assertEquals(10, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("1", hits[0].getSourceAsMap().get("id"));
             assertEquals("5", hits[1].getSourceAsMap().get("id"));
@@ -423,7 +425,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse response = runner.client().prepareSearch("_all").setQuery(QueryBuilders.matchAllQuery())
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).setFrom(0).setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(10, searchHits.getTotalHits());
+            assertEquals(10, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("1", hits[0].getSourceAsMap().get("id"));
             assertEquals("2", hits[1].getSourceAsMap().get("id"));
@@ -450,7 +452,7 @@ public class DynamicRankingPluginTest {
     public void diversitySort() throws Exception {
 
         final String index = "test_index";
-        final String type = "test_type";
+        final String type = "_doc";
 
         {
             // create an index
@@ -511,18 +513,18 @@ public class DynamicRankingPluginTest {
         runner.refresh();
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(QueryBuilders.idsQuery("0"))
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.idsQuery("0"))
                     .storedFields("_source", "minhash_value").setFrom(20).setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(0, searchHits.getTotalHits());
+            assertEquals(0, searchHits.getTotalHits().value);
         }
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery())
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value").setFrom(0)
                     .setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(100, searchHits.getTotalHits());
+            assertEquals(100, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("1", hits[0].getSourceAsMap().get("id"));
             assertEquals("7", hits[1].getSourceAsMap().get("id"));
@@ -537,11 +539,11 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery())
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value").setFrom(10)
                     .setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(100, searchHits.getTotalHits());
+            assertEquals(100, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("3", hits[0].getSourceAsMap().get("id"));
             assertEquals("9", hits[1].getSourceAsMap().get("id"));
@@ -556,11 +558,11 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery())
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value").setFrom(20)
                     .setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(100, searchHits.getTotalHits());
+            assertEquals(100, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("21", hits[0].getSourceAsMap().get("id"));
             assertEquals("22", hits[1].getSourceAsMap().get("id"));
@@ -580,11 +582,11 @@ public class DynamicRankingPluginTest {
                 .should(QueryBuilders.termQuery("order", 60)).should(QueryBuilders.termQuery("order", 70))
                 .should(QueryBuilders.rangeQuery("order").from(80).to(90));
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(testQuery)
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(testQuery)
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value").setFrom(0)
                     .setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(22, searchHits.getTotalHits());
+            assertEquals(22, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("1", hits[0].getSourceAsMap().get("id"));
             assertEquals("20", hits[1].getSourceAsMap().get("id"));
@@ -599,11 +601,11 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(testQuery)
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(testQuery)
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value").setFrom(10)
                     .setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(22, searchHits.getTotalHits());
+            assertEquals(22, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("80", hits[0].getSourceAsMap().get("id"));
             assertEquals("83", hits[1].getSourceAsMap().get("id"));
@@ -618,22 +620,22 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(testQuery)
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(testQuery)
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value").setFrom(20)
                     .setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(22, searchHits.getTotalHits());
+            assertEquals(22, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("89", hits[0].getSourceAsMap().get("id"));
             assertEquals("90", hits[1].getSourceAsMap().get("id"));
         }
 
         for (int i = 0; i < 1000; i++) {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery())
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value").setFrom(0)
                     .setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(100, searchHits.getTotalHits());
+            assertEquals(100, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("1", hits[0].getSourceAsMap().get("id"));
             assertEquals("7", hits[1].getSourceAsMap().get("id"));
@@ -661,7 +663,7 @@ public class DynamicRankingPluginTest {
 
     private void diversitySortWithShuffle(String name) throws Exception {
         final String index = "test_index";
-        final String type = "test_type";
+        final String type = "_doc";
 
         {
             // create an index
@@ -721,11 +723,11 @@ public class DynamicRankingPluginTest {
         runner.refresh();
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type)
+            final SearchResponse response = runner.client().prepareSearch(index)
                     .setQuery(QueryBuilders.termQuery("msg", "aaa0")).storedFields("_source", "minhash_value")
                     .addSort("_score", SortOrder.DESC).addSort("order", SortOrder.ASC).setFrom(0).setSize(5).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(20, searchHits.getTotalHits());
+            assertEquals(20, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("21", hits[0].getSourceAsMap().get("id"));
             assertEquals("161", hits[1].getSourceAsMap().get("id"));
@@ -735,11 +737,11 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type)
+            final SearchResponse response = runner.client().prepareSearch(index)
                     .setQuery(QueryBuilders.termQuery("msg", "aaa0")).storedFields("_source", "minhash_value")
                     .addSort("_score", SortOrder.DESC).addSort("order", SortOrder.ASC).setFrom(5).setSize(5).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(20, searchHits.getTotalHits());
+            assertEquals(20, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("111", hits[0].getSourceAsMap().get("id"));
             assertEquals("61", hits[1].getSourceAsMap().get("id"));
@@ -749,11 +751,11 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type)
+            final SearchResponse response = runner.client().prepareSearch(index)
                     .setQuery(QueryBuilders.termQuery("msg", "aaa0")).storedFields("_source", "minhash_value")
                     .addSort("_score", SortOrder.DESC).addSort("order", SortOrder.ASC).setFrom(10).setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(20, searchHits.getTotalHits());
+            assertEquals(20, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("91", hits[0].getSourceAsMap().get("id"));
             assertEquals("141", hits[1].getSourceAsMap().get("id"));
@@ -792,7 +794,7 @@ public class DynamicRankingPluginTest {
         final Client client = runner.client();
 
         final String index = "sample";
-        final String type = "data";
+        final String type = "_doc";
         runner.createIndex(index,
                 Settings.builder().put(DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE.getKey(), 100)
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_SCRIPT.getKey(),
@@ -809,7 +811,7 @@ public class DynamicRankingPluginTest {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).setScroll("1m").execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("1", hits.getHits()[0].getId());
             assertEquals("10", hits.getHits()[9].getId());
@@ -824,7 +826,7 @@ public class DynamicRankingPluginTest {
         final Client client = runner.client();
 
         final String index = "sample";
-        final String type = "data";
+        final String type = "_doc";
         runner.createIndex(index,
                 Settings.builder().put(DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE.getKey(), 100)
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_SCRIPT.getKey(),
@@ -843,7 +845,7 @@ public class DynamicRankingPluginTest {
                             //.putHeader("_rerank", false)
                             .execute().actionGet();
             final SearchHits hits = searchResponse.getHits();
-            assertEquals(1000, hits.getTotalHits());
+            assertEquals(1000, hits.getTotalHits().value);
             assertEquals(10, hits.getHits().length);
             assertEquals("1", hits.getHits()[0].getId());
             assertEquals("10", hits.getHits()[9].getId());
@@ -854,7 +856,7 @@ public class DynamicRankingPluginTest {
     @Test
     public void reorder_with_ignored() throws Exception {
         final String index = "test_index";
-        final String type = "test_type";
+        final String type = "_doc";
 
         {
             // create an index
@@ -920,11 +922,11 @@ public class DynamicRankingPluginTest {
         runner.refresh();
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setTypes(type).setQuery(QueryBuilders.matchAllQuery())
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "minhash_value", "category")
                     .setFrom(0).setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
-            assertEquals(100, searchHits.getTotalHits());
+            assertEquals(100, searchHits.getTotalHits().value);
             final SearchHit[] hits = searchHits.getHits();
             assertEquals("1", hits[0].getSourceAsMap().get("id"));
             assertEquals("7", hits[1].getSourceAsMap().get("id"));

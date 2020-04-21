@@ -4,7 +4,6 @@ import static org.elasticsearch.action.search.ShardSearchFailure.readShardSearch
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -285,7 +284,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             @Override
             public void onResponse(final Response response) {
                 final SearchResponse searchResponse = (SearchResponse) response;
-                final long totalHits = searchResponse.getHits().getTotalHits();
+                final long totalHits = searchResponse.getHits().getTotalHits().value;
                 if (totalHits == 0) {
                     if (logger.isDebugEnabled()) {
                         logger.debug("totalHits is {}. No reranking results: {}", totalHits, searchResponse);
@@ -321,20 +320,21 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading hits...");
                     }
-                    final SearchHits hits = SearchHits.readSearchHits(in);
+                    final SearchHits hits = new SearchHits(in);
                     final SearchHits newHits = doReorder(hits, from, size, reorderSize, scriptInfo);
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading aggregations...");
                     }
-                    final InternalAggregations aggregations = in.readBoolean() ? InternalAggregations.readAggregations(in) : null;
+                    final InternalAggregations aggregations = in.readOptionalWriteable(InternalAggregations::new);
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading suggest...");
                     }
-                    final Suggest suggest = in.readBoolean() ? Suggest.readSuggest(in) : null;
+                    final Suggest suggest = in.readBoolean() ? new Suggest(in) : null;
                     final boolean timedOut = in.readBoolean();
                     final Boolean terminatedEarly = in.readOptionalBoolean();
                     final SearchProfileShardResults profileResults = in.readOptionalWriteable(SearchProfileShardResults::new);
-                    final int numReducePhases = in.getVersion().onOrAfter(Version.V_5_4_0) ? in.readVInt() : 1;
+                    final int numReducePhases =  in.readVInt();
+
                     final SearchResponseSections internalResponse = new InternalSearchResponse(newHits, aggregations, suggest,
                             profileResults, timedOut, terminatedEarly, numReducePhases);
 
@@ -358,12 +358,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     }
                     final String scrollId = in.readOptionalString();
                     /* tookInMillis = */ in.readVLong();
-                    final int skippedShards;
-                    if (in.getVersion().onOrAfter(Version.V_5_6_0)) {
-                        skippedShards = in.readVInt();
-                    } else {
-                        skippedShards = 0;
-                    }
+                    final int skippedShards = in.readVInt();
                     final long tookInMillis = (System.nanoTime() - startTime) / 1000000;
 
                     if (logger.isDebugEnabled()) {
@@ -432,15 +427,11 @@ public class DynamicRanker extends AbstractLifecycleComponent {
     }
 
     private SearchHit[] onReorder(final SearchHit[] searchHits, final ScriptInfo scriptInfo) {
-        final Map<String, Object> vars = new HashMap<>();
         final SearchHit[] hits = searchHits;
-        vars.put("searchHits", hits);
-        vars.put("threadContext", threadPool.getThreadContext());
-        vars.putAll(scriptInfo.getSettings());
         final Factory factory = scriptService.compile(
-                new Script(scriptInfo.getScriptType(), scriptInfo.getLang(), scriptInfo.getScript(), Collections.emptyMap()),
+                new Script(scriptInfo.getScriptType(), scriptInfo.getLang(), scriptInfo.getScript(), scriptInfo.getSettings()),
                 DynaRankScript.CONTEXT);
-        return factory.newInstance(vars).execute();
+        return factory.newInstance(scriptInfo.getSettings()).execute(hits);
     }
 
     private int getInt(final Object value, final int defaultValue) {
