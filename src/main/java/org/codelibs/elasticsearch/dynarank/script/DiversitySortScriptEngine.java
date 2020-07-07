@@ -105,9 +105,4 @@ public class DiversitySortScriptEngine implements ScriptEngine {
         }
 
     }
-
-    @Override
-    public Set<ScriptContext<?>> getSupportedContexts() {
-        return Collections.singleton(DynaRankScript.CONTEXT);
-    }
 }
