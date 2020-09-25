@@ -16,6 +16,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.plugins.ActionPlugin;
 import org.elasticsearch.plugins.Plugin;
 import org.elasticsearch.plugins.ScriptPlugin;
+import org.elasticsearch.rest.RestHeaderDefinition;
 import org.elasticsearch.script.ScriptContext;
 import org.elasticsearch.script.ScriptEngine;
 
@@ -35,6 +36,15 @@ public class DynamicRankingPlugin extends Plugin implements ActionPlugin, Script
     @Override
     public List<ActionFilter> getActionFilters() {
         return Arrays.asList(new SearchActionFilter(settings));
+    }
+
+    @Override
+    public Collection<RestHeaderDefinition> getRestHeaders() {
+        return Arrays.asList(
+                new RestHeaderDefinition(DynamicRanker.DYNARANK_RERANK_ENABLE,
+                        false),
+                new RestHeaderDefinition(DynamicRanker.DYNARANK_MIN_TOTAL_HITS,
+                        false));
     }
 
     @Override
