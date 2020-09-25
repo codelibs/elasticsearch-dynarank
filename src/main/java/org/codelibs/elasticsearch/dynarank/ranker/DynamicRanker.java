@@ -87,9 +87,9 @@ public class DynamicRanker extends AbstractLifecycleComponent {
     public static final Setting<TimeValue> SETTING_DYNARANK_CACHE_CLEAN_INTERVAL =
             Setting.timeSetting("dynarank.cache.clean_interval", TimeValue.timeValueSeconds(60), Property.NodeScope);
 
-    private static final String DYNARANK_RERANK_ENABLE = "_rerank";
+    public static final String DYNARANK_RERANK_ENABLE = "Dynarank-Rerank";
 
-    private static final String DYNARANK_MIN_TOTAL_HITS = "_minTotalHits";
+    public static final String DYNARANK_MIN_TOTAL_HITS = "Dynarank-Min-Total-Hits";
 
     private final ClusterService clusterService;
 
