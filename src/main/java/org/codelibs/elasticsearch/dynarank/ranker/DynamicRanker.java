@@ -81,6 +81,9 @@ public class DynamicRanker extends AbstractLifecycleComponent {
     public static final Setting<Integer> SETTING_INDEX_DYNARANK_REORDER_SIZE =
             Setting.intSetting("index.dynarank.reorder_size", 100, Property.IndexScope, Property.Dynamic);
 
+    public static final Setting<Integer> SETTING_INDEX_DYNARANK_KEEP_TOPN =
+            Setting.intSetting("index.dynarank.keep_topn", 0, Property.IndexScope, Property.Dynamic);
+
     public static final Setting<TimeValue> SETTING_DYNARANK_CACHE_EXPIRE =
             Setting.timeSetting("dynarank.cache.expire", TimeValue.MINUS_ONE, Property.NodeScope);
 
@@ -210,7 +213,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
         }
 
         final ActionListener<Response> searchResponseListener =
-                createSearchResponseListener(request, listener, from, size, scriptInfo.getReorderSize(), startTime, scriptInfo);
+                createSearchResponseListener(request, listener, from, size,  startTime, scriptInfo);
         return new ActionListener<Response>() {
             @Override
             public void onResponse(final Response response) {
@@ -255,7 +258,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                         .filter(s -> SETTING_INDEX_DYNARANK_LANG.get(s).length() > 0)
                         .map(settings -> new ScriptInfo(SETTING_INDEX_DYNARANK_SCRIPT.get(settings),
                                 SETTING_INDEX_DYNARANK_LANG.get(settings), SETTING_INDEX_DYNARANK_TYPE.get(settings),
-                                SETTING_INDEX_DYNARANK_PARAMS.get(settings), SETTING_INDEX_DYNARANK_REORDER_SIZE.get(settings)))
+                                SETTING_INDEX_DYNARANK_PARAMS.get(settings), SETTING_INDEX_DYNARANK_REORDER_SIZE.get(settings), SETTING_INDEX_DYNARANK_KEEP_TOPN.get(settings)))
                         .toArray(n -> new ScriptInfo[n]);
 
                 if (scriptInfos.length == 0) {
@@ -278,7 +281,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
     }
 
     private <Response extends ActionResponse> ActionListener<Response> createSearchResponseListener(final SearchRequest request,
-            final ActionListener<Response> listener, final int from, final int size, final int reorderSize, final long startTime,
+            final ActionListener<Response> listener, final int from, final int size, final long startTime,
             final ScriptInfo scriptInfo) {
         return new ActionListener<Response>() {
             @Override
@@ -321,7 +324,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                         logger.debug("Reading hits...");
                     }
                     final SearchHits hits = new SearchHits(in);
-                    final SearchHits newHits = doReorder(hits, from, size, reorderSize, scriptInfo);
+                    final SearchHits newHits = doReorder(hits, from, size, scriptInfo);
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading aggregations...");
                     }
@@ -390,14 +393,14 @@ public class DynamicRanker extends AbstractLifecycleComponent {
         };
     }
 
-    private SearchHits doReorder(final SearchHits hits, final int from, final int size, final int reorderSize,
+    private SearchHits doReorder(final SearchHits hits, final int from, final int size,
             final ScriptInfo scriptInfo) {
         final SearchHit[] searchHits = hits.getHits();
         SearchHit[] newSearchHits;
         if (logger.isDebugEnabled()) {
-            logger.debug("searchHits.length <= reorderSize: {}", searchHits.length <= reorderSize);
+            logger.debug("searchHits.length <= reorderSize: {}", searchHits.length <= scriptInfo.getReorderSize());
         }
-        if (searchHits.length <= reorderSize) {
+        if (searchHits.length <= scriptInfo.getReorderSize()) {
             final SearchHit[] targets = onReorder(searchHits, scriptInfo);
             if (from >= targets.length) {
                 newSearchHits = new SearchHit[0];
@@ -412,7 +415,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                 newSearchHits = Arrays.copyOfRange(targets, from, end);
             }
         } else {
-            SearchHit[] targets = Arrays.copyOfRange(searchHits, 0, reorderSize);
+            SearchHit[] targets = Arrays.copyOfRange(searchHits, 0, scriptInfo.getReorderSize());
             targets = onReorder(targets, scriptInfo);
             final List<SearchHit> list = new ArrayList<>(size);
             for (int i = from; i < targets.length; i++) {
@@ -426,12 +429,28 @@ public class DynamicRanker extends AbstractLifecycleComponent {
         return new SearchHits(newSearchHits, hits.getTotalHits(), hits.getMaxScore());
     }
 
-    private SearchHit[] onReorder(final SearchHit[] searchHits, final ScriptInfo scriptInfo) {
-        final SearchHit[] hits = searchHits;
+    private SearchHit[] onReorder(final SearchHit[] searchHits,
+            final ScriptInfo scriptInfo) {
+        final int keepTopN = scriptInfo.getKeepTopN();
+        if (searchHits.length <= keepTopN) {
+            return searchHits;
+        }
         final Factory factory = scriptService.compile(
-                new Script(scriptInfo.getScriptType(), scriptInfo.getLang(), scriptInfo.getScript(), scriptInfo.getSettings()),
+                new Script(scriptInfo.getScriptType(), scriptInfo.getLang(),
+                        scriptInfo.getScript(), scriptInfo.getSettings()),
                 DynaRankScript.CONTEXT);
-        return factory.newInstance(scriptInfo.getSettings()).execute(hits);
+        if (keepTopN == 0) {
+            return factory.newInstance(scriptInfo.getSettings())
+                    .execute(searchHits);
+        }
+        final SearchHit[] hits = Arrays.copyOfRange(searchHits, keepTopN,
+                searchHits.length);
+        final SearchHit[] reordered = factory
+                .newInstance(scriptInfo.getSettings()).execute(hits);
+        for (int i = keepTopN; i < searchHits.length; i++) {
+            searchHits[i] = reordered[i - keepTopN];
+        }
+        return searchHits;
     }
 
     private int getInt(final Object value, final int defaultValue) {
@@ -460,14 +479,17 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
         private int reorderSize;
 
+        private int keepTopN;
+
         ScriptInfo() {
             // nothing
         }
 
-        ScriptInfo(final String script, final String lang, final String scriptType, final Settings settings, final int reorderSize) {
+        ScriptInfo(final String script, final String lang, final String scriptType, final Settings settings, final int reorderSize,final int keepTopN) {
             this.script = script;
             this.lang = lang;
             this.reorderSize = reorderSize;
+            this.keepTopN=keepTopN;
             this.settings = new HashMap<>();
             for (final String name : settings.keySet()) {
                 final List<String> list = settings.getAsList(name);
@@ -496,14 +518,19 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             return settings;
         }
 
+
         public int getReorderSize() {
             return reorderSize;
+        }
+
+        public int getKeepTopN() {
+            return keepTopN;
         }
 
         @Override
         public String toString() {
             return "ScriptInfo [script=" + script + ", lang=" + lang + ", scriptType=" + scriptType + ", settings=" + settings
-                    + ", reorderSize=" + reorderSize + "]";
+                    + ", reorderSize=" + reorderSize   + ", keepTopN=" + keepTopN + "]";
         }
     }
 
@@ -545,7 +572,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
                     final ScriptInfo scriptInfo = new ScriptInfo(script, SETTING_INDEX_DYNARANK_LANG.get(indexSettings),
                             SETTING_INDEX_DYNARANK_TYPE.get(indexSettings), SETTING_INDEX_DYNARANK_PARAMS.get(indexSettings),
-                            SETTING_INDEX_DYNARANK_REORDER_SIZE.get(indexSettings));
+                            SETTING_INDEX_DYNARANK_REORDER_SIZE.get(indexSettings),   SETTING_INDEX_DYNARANK_KEEP_TOPN.get(indexSettings));
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reload cache for {} => {}", index, scriptInfo);
                     }
