@@ -63,6 +63,7 @@ public class DynamicRankingPlugin extends Plugin implements ActionPlugin, Script
                 DynamicRanker.SETTING_INDEX_DYNARANK_TYPE, //
                 DynamicRanker.SETTING_INDEX_DYNARANK_PARAMS, //
                 DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE, //
+                DynamicRanker.SETTING_INDEX_DYNARANK_KEEP_TOPN, //
                 DynamicRanker.SETTING_DYNARANK_CACHE_CLEAN_INTERVAL, //
                 DynamicRanker.SETTING_DYNARANK_CACHE_EXPIRE //
         );
