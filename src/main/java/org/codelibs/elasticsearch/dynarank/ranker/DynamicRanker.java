@@ -26,9 +26,9 @@ import org.elasticsearch.action.search.SearchResponseSections;
 import org.elasticsearch.action.search.ShardSearchFailure;
 import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.metadata.AliasOrIndex;
-import org.elasticsearch.cluster.metadata.IndexMetaData;
-import org.elasticsearch.cluster.metadata.MetaData;
+import org.elasticsearch.cluster.metadata.IndexAbstraction;
+import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
 import org.elasticsearch.common.inject.Inject;
@@ -248,13 +248,13 @@ public class DynamicRanker extends AbstractLifecycleComponent {
     public ScriptInfo getScriptInfo(final String index) {
         try {
             return scriptInfoCache.get(index, () -> {
-                final MetaData metaData = clusterService.state().getMetaData();
-                final AliasOrIndex aliasOrIndex = metaData.getAliasAndIndexLookup().get(index);
-                if (aliasOrIndex == null) {
+                final Metadata metaData = clusterService.state().getMetadata();
+                IndexAbstraction indexAbstraction = metaData.getIndicesLookup().get(index);
+                if (indexAbstraction == null) {
                     return ScriptInfo.NO_SCRIPT_INFO;
                 }
 
-                final ScriptInfo[] scriptInfos = aliasOrIndex.getIndices().stream().map(md -> md.getSettings())
+                final ScriptInfo[] scriptInfos = indexAbstraction.getIndices().stream().map(md -> md.getSettings())
                         .filter(s -> SETTING_INDEX_DYNARANK_LANG.get(s).length() > 0)
                         .map(settings -> new ScriptInfo(SETTING_INDEX_DYNARANK_SCRIPT.get(settings),
                                 SETTING_INDEX_DYNARANK_LANG.get(settings), SETTING_INDEX_DYNARANK_TYPE.get(settings),
@@ -323,12 +323,14 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading hits...");
                     }
+                    // BEGIN: SearchResponse#writeTo
+                    // BEGIN: InternalSearchResponse#writeTo
                     final SearchHits hits = new SearchHits(in);
                     final SearchHits newHits = doReorder(hits, from, size, scriptInfo);
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading aggregations...");
                     }
-                    final InternalAggregations aggregations = in.readOptionalWriteable(InternalAggregations::new);
+                    final InternalAggregations aggregations =  in.readBoolean() ? InternalAggregations.readFrom(in) : null;
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reading suggest...");
                     }
@@ -340,6 +342,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
                     final SearchResponseSections internalResponse = new InternalSearchResponse(newHits, aggregations, suggest,
                             profileResults, timedOut, terminatedEarly, numReducePhases);
+                    // END: InternalSearchResponse
 
                     final int totalShards = in.readVInt();
                     final int successfulShards = in.readVInt();
@@ -362,6 +365,8 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     final String scrollId = in.readOptionalString();
                     /* tookInMillis = */ in.readVLong();
                     final int skippedShards = in.readVInt();
+                    // END: SearchResponse
+
                     final long tookInMillis = (System.nanoTime() - startTime) / 1000000;
 
                     if (logger.isDebugEnabled()) {
@@ -551,7 +556,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                 for (final Map.Entry<String, ScriptInfo> entry : scriptInfoCache.asMap().entrySet()) {
                     final String index = entry.getKey();
 
-                    final IndexMetaData indexMD = clusterService.state().getMetaData().index(index);
+                    final IndexMetadata indexMD = clusterService.state().getMetadata().index(index);
                     if (indexMD == null) {
                         scriptInfoCache.invalidate(index);
                         if (logger.isDebugEnabled()) {
