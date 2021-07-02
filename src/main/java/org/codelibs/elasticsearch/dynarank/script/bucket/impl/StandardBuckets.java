@@ -66,7 +66,7 @@ public class StandardBuckets implements Buckets {
                 boolean insert = false;
                 final SearchHit hit = hits[j];
                 final Object value = getFieldValue(hit, diversityField);
-                if (value == this) {
+                if (value == null) {
                     if (logger.isDebugEnabled()) {
                         logger.debug("diversityField {} does not exist. Reranking is skipped.", diversityField);
                     }
@@ -178,7 +178,7 @@ public class StandardBuckets implements Buckets {
             } else if (object instanceof Number) {
                 return object;
             }
-            return this;
+            return null;
         }
         final Object object = field.getValue();
         if (object instanceof BytesReference) {
