@@ -14,9 +14,12 @@ public class StandardBucket implements Bucket {
 
     private final float threshold;
 
-    public StandardBucket(final SearchHit hit, final Object hash, final float threshold) {
+    private final boolean isMinhash;
+
+    public StandardBucket(final SearchHit hit, final Object hash, final float threshold, final boolean isMinhash) {
         this.hash = hash;
         this.threshold = threshold;
+        this.isMinhash = isMinhash;
         queue.add(hit);
     }
 
@@ -45,6 +48,9 @@ public class StandardBucket implements Bucket {
         }
 
         if (value instanceof String) {
+            if (isMinhash) {
+                return MinHash.compare(hash.toString(), value.toString()) >= threshold;
+            }
             return value.toString().equals(hash);
         } else if (value instanceof Number) {
             return Math.abs(((Number) value).doubleValue() - ((Number) hash).doubleValue()) < threshold;

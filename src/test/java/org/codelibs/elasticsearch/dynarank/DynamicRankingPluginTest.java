@@ -4,7 +4,6 @@ import static org.codelibs.elasticsearch.runner.ElasticsearchClusterRunner.newCo
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -19,18 +18,20 @@ import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.settings.Settings.Builder;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
+import org.elasticsearch.xcontent.XContentBuilder;
+import org.elasticsearch.xcontent.XContentFactory;
+import org.elasticsearch.xcontent.XContentType;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.Arrays;
 
 public class DynamicRankingPluginTest {
     ElasticsearchClusterRunner runner;
@@ -65,7 +66,7 @@ public class DynamicRankingPluginTest {
 //    @Test
 //    public void scriptInfoCache() throws Exception {
 //
-//        assertThat(1, is(runner.getNodeSize()));
+//        assertEquals(1, runner.getNodeSize());
 //        final Client client = runner.client();
 //
 //        final String index = "sample";
@@ -126,7 +127,7 @@ public class DynamicRankingPluginTest {
 //    @Test
 //    public void reorder() throws Exception {
 //
-//        assertThat(1, is(runner.getNodeSize()));
+//        assertEquals(1, runner.getNodeSize());
 //        final Client client = runner.client();
 //
 //        final String index = "sample";
@@ -148,8 +149,8 @@ public class DynamicRankingPluginTest {
 //            assertEquals(Result.CREATED, indexResponse1.getResult());
 //        }
 //
-//        assertResultOrder(client, index, type);
-//        assertResultOrder(client, alias, type);
+//        assertResultOrder(client, index);
+//        assertResultOrder(client, alias);
 //
 //        String index2 = index + "2";
 //        runner.createIndex(index2, (Settings) null);
@@ -159,10 +160,10 @@ public class DynamicRankingPluginTest {
 //                "{\"id\":\"" + tempId + "\",\"msg\":\"test " + tempId + "\",\"counter\":" + tempId + "}");
 //        runner.delete(index2, type, String.valueOf(tempId));
 //        runner.refresh();
-//        assertResultOrder(client, alias, type);
+//        assertResultOrder(client, alias);
 //    }
 
-    private void assertResultOrder(Client client, String index, String type) {
+    private void assertResultOrder(Client client, String index) {
         {
             final SearchResponse searchResponse = client.prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
                     .addSort("counter", SortOrder.ASC).execute().actionGet();
@@ -315,7 +316,7 @@ public class DynamicRankingPluginTest {
         }
 
         {
-            final SearchResponse searchResponse = runner.search(index, type, QueryBuilders.queryStringQuery("msg:foo"), null, 0, 10);
+            final SearchResponse searchResponse = runner.search(index, QueryBuilders.queryStringQuery("msg:foo"), null, 0, 10);
             final SearchHits hits = searchResponse.getHits();
             assertEquals(0, hits.getTotalHits().value);
         }
@@ -377,29 +378,30 @@ public class DynamicRankingPluginTest {
                     // minhash
                     .startObject("minhash_value")//
                     .field("type", "minhash")//
+                    .field("store", true)//
                     .field("minhash_analyzer", "minhash_analyzer")//
                     .endObject()//
 
                     .endObject()//
                     .endObject()//
                     .endObject();
-            runner.createMapping(index, type, mappingBuilder);
+            runner.createMapping(index, mappingBuilder);
         }
 
         if (!runner.indexExists(index)) {
             fail();
         }
 
-        insertTestData(index, type, 1, "aaa bbb ccc", "cat1");
-        insertTestData(index, type, 2, "aaa bbb ccc", "cat1");
-        insertTestData(index, type, 3, "aaa bbb ccc", "cat2");
-        insertTestData(index, type, 4, "aaa bbb ddd", "cat1");
-        insertTestData(index, type, 5, "aaa bbb ddd", "cat2");
-        insertTestData(index, type, 6, "aaa bbb ddd", "cat2");
-        insertTestData(index, type, 7, "aaa bbb eee", "cat1");
-        insertTestData(index, type, 8, "aaa bbb eee", "cat1");
-        insertTestData(index, type, 9, "aaa bbb eee", "cat2");
-        insertTestData(index, type, 10, "aaa bbb fff", "cat1");
+        insertTestData(index, 1, "aaa bbb ccc", "cat1");
+        insertTestData(index, 2, "aaa bbb ccc", "cat1");
+        insertTestData(index, 3, "aaa bbb ccc", "cat2");
+        insertTestData(index, 4, "aaa bbb ddd", "cat1");
+        insertTestData(index, 5, "aaa bbb ddd", "cat2");
+        insertTestData(index, 6, "aaa bbb ddd", "cat2");
+        insertTestData(index, 7, "aaa bbb eee", "cat1");
+        insertTestData(index, 8, "aaa bbb eee", "cat1");
+        insertTestData(index, 9, "aaa bbb eee", "cat2");
+        insertTestData(index, 10, "aaa bbb fff", "cat1");
 
         {
             final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
@@ -440,9 +442,9 @@ public class DynamicRankingPluginTest {
         }
     }
 
-    private void insertTestData(final String index, final String type, final int id, final String msg, final String category) {
+    private void insertTestData(final String index, final int id, final String msg, final String category) {
         assertEquals(Result.CREATED,
-                runner.insert(index, type, String.valueOf(id),
+                runner.insert(index, String.valueOf(id),
                         "{\"id\":\"" + id + "\",\"msg\":\"" + msg + "\",\"category\":\"" + category + "\",\"order\":" + id + "}")
                         .getResult());
 
@@ -489,13 +491,14 @@ public class DynamicRankingPluginTest {
                     // minhash
                     .startObject("minhash_value")//
                     .field("type", "minhash")//
+                    .field("store", true)//
                     .field("minhash_analyzer", "minhash_analyzer")//
                     .endObject()//
 
                     .endObject()//
                     .endObject()//
                     .endObject();
-            runner.createMapping(index, type, mappingBuilder);
+            runner.createMapping(index, mappingBuilder);
         }
 
         if (!runner.indexExists(index)) {
@@ -506,14 +509,14 @@ public class DynamicRankingPluginTest {
         final StringBuilder[] texts = createTexts();
         for (int i = 1; i <= 100; i++) {
             // System.out.println(texts[i - 1]);
-            final IndexResponse indexResponse1 = runner.insert(index, type, String.valueOf(i),
+            final IndexResponse indexResponse1 = runner.insert(index, String.valueOf(i),
                     "{\"id\":\"" + i + "\",\"msg\":\"" + texts[i - 1].toString() + "\",\"order\":" + i + "}");
             assertEquals(Result.CREATED, indexResponse1.getResult());
         }
         runner.refresh();
 
         {
-            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.idsQuery("0"))
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.idsQuery().addIds("0"))
                     .storedFields("_source", "minhash_value").setFrom(20).setSize(10).execute().actionGet();
             final SearchHits searchHits = response.getHits();
             assertEquals(0, searchHits.getTotalHits().value);
@@ -700,13 +703,14 @@ public class DynamicRankingPluginTest {
                     // minhash
                     .startObject("minhash_value")//
                     .field("type", "minhash")//
+                    .field("store", true)//
                     .field("minhash_analyzer", "minhash_analyzer")//
                     .endObject()//
 
                     .endObject()//
                     .endObject()//
                     .endObject();
-            runner.createMapping(index, type, mappingBuilder);
+            runner.createMapping(index, mappingBuilder);
         }
 
         if (!runner.indexExists(index)) {
@@ -716,7 +720,7 @@ public class DynamicRankingPluginTest {
         // create 200 documents
         final StringBuilder[] texts = createTexts();
         for (int i = 1; i <= 200; i++) {
-            final IndexResponse indexResponse1 = runner.insert(index, type, String.valueOf(i),
+            final IndexResponse indexResponse1 = runner.insert(index, String.valueOf(i),
                     "{\"id\":\"" + i + "\",\"msg\":\"" + texts[(i - 1) % 10].toString() + "\",\"order\":" + i + "}");
             assertEquals(Result.CREATED, indexResponse1.getResult());
         }
@@ -790,11 +794,10 @@ public class DynamicRankingPluginTest {
     @Test
     public void skipReorder() throws Exception {
 
-        assertThat(1, is(runner.getNodeSize()));
+        assertEquals(1, runner.getNodeSize());
         final Client client = runner.client();
 
         final String index = "sample";
-        final String type = "_doc";
         runner.createIndex(index,
                 Settings.builder().put(DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE.getKey(), 100)
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_SCRIPT.getKey(),
@@ -802,7 +805,7 @@ public class DynamicRankingPluginTest {
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_PARAMS.getKey() + "foo", "bar").build());
 
         for (int i = 1; i <= 1000; i++) {
-            final IndexResponse indexResponse1 = runner.insert(index, type, String.valueOf(i),
+            final IndexResponse indexResponse1 = runner.insert(index, String.valueOf(i),
                     "{\"id\":\"" + i + "\",\"msg\":\"test " + i + "\",\"counter\":" + i + "}");
             assertEquals(Result.CREATED, indexResponse1.getResult());
         }
@@ -822,11 +825,10 @@ public class DynamicRankingPluginTest {
     @Test
     public void skipReorder_scrollSearch() throws Exception {
 
-        assertThat(1, is(runner.getNodeSize()));
+        assertEquals(1, runner.getNodeSize());
         final Client client = runner.client();
 
         final String index = "sample";
-        final String type = "_doc";
         runner.createIndex(index,
                 Settings.builder().put(DynamicRanker.SETTING_INDEX_DYNARANK_REORDER_SIZE.getKey(), 100)
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_SCRIPT.getKey(),
@@ -834,7 +836,7 @@ public class DynamicRankingPluginTest {
                         .put(DynamicRanker.SETTING_INDEX_DYNARANK_PARAMS.getKey() + "foo", "bar").build());
 
         for (int i = 1; i <= 1000; i++) {
-            final IndexResponse indexResponse1 = runner.insert(index, type, String.valueOf(i),
+            final IndexResponse indexResponse1 = runner.insert(index, String.valueOf(i),
                     "{\"id\":\"" + i + "\",\"msg\":\"test " + i + "\",\"counter\":" + i + "}");
             assertEquals(Result.CREATED, indexResponse1.getResult());
         }
@@ -898,13 +900,14 @@ public class DynamicRankingPluginTest {
                     // minhash
                     .startObject("minhash_value")//
                     .field("type", "minhash")//
+                    .field("store", true)//
                     .field("minhash_analyzer", "minhash_analyzer")//
                     .endObject()//
 
                     .endObject()//
                     .endObject()//
                     .endObject();
-            runner.createMapping(index, type, mappingBuilder);
+            runner.createMapping(index, mappingBuilder);
         }
 
         if (!runner.indexExists(index)) {
@@ -915,7 +918,7 @@ public class DynamicRankingPluginTest {
         final StringBuilder[] texts = createTexts();
         for (int i = 1; i <= 100; i++) {
             // System.out.println(texts[i - 1]);
-            final IndexResponse indexResponse1 = runner.insert(index, type, String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\""
+            final IndexResponse indexResponse1 = runner.insert(index, String.valueOf(i), "{\"id\":\"" + i + "\",\"msg\":\""
                     + texts[i - 1].toString() + "\",\"category\":\"category" + (i % 2) + "\",\"order\":" + i + "}");
             assertEquals(Result.CREATED, indexResponse1.getResult());
         }
@@ -990,13 +993,14 @@ public class DynamicRankingPluginTest {
                     // minhash
                     .startObject("minhash_value")//
                     .field("type", "minhash")//
+                    .field("store", true)//
                     .field("minhash_analyzer", "minhash_analyzer")//
                     .endObject()//
 
                     .endObject()//
                     .endObject()//
                     .endObject();
-            runner.createMapping(index, type, mappingBuilder);
+            runner.createMapping(index, mappingBuilder);
         }
 
         if (!runner.indexExists(index)) {
@@ -1007,7 +1011,7 @@ public class DynamicRankingPluginTest {
         final StringBuilder[] texts = createTexts();
         for (int i = 1; i <= 100; i++) {
             // System.out.println(texts[i - 1]);
-            final IndexResponse indexResponse1 = runner.insert(index, type,
+            final IndexResponse indexResponse1 = runner.insert(index,
                     String.valueOf(i),
                     "{\"id\":\"" + i + "\",\"msg\":\"" + texts[i - 1].toString()
                             + "\",\"category\":\"category" + (i % 2)

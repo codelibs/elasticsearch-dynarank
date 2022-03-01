@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.Objects;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,6 +29,7 @@ import org.elasticsearch.action.support.ActionFilters;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.metadata.IndexAbstraction;
 import org.elasticsearch.cluster.metadata.IndexMetadata;
+import org.elasticsearch.cluster.metadata.MappingMetadata;
 import org.elasticsearch.cluster.metadata.Metadata;
 import org.elasticsearch.cluster.service.ClusterService;
 import org.elasticsearch.common.component.AbstractLifecycleComponent;
@@ -39,8 +41,8 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.settings.Setting;
 import org.elasticsearch.common.settings.Setting.Property;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.common.util.concurrent.ThreadContext;
+import org.elasticsearch.core.TimeValue;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptService;
 import org.elasticsearch.script.ScriptType;
@@ -49,7 +51,7 @@ import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.aggregations.InternalAggregations;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.search.internal.InternalSearchResponse;
-import org.elasticsearch.search.profile.SearchProfileShardResults;
+import org.elasticsearch.search.profile.SearchProfileResults;
 import org.elasticsearch.search.suggest.Suggest;
 import org.elasticsearch.threadpool.ThreadPool;
 
@@ -254,11 +256,15 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     return ScriptInfo.NO_SCRIPT_INFO;
                 }
 
-                final ScriptInfo[] scriptInfos = indexAbstraction.getIndices().stream().map(md -> md.getSettings())
-                        .filter(s -> SETTING_INDEX_DYNARANK_LANG.get(s).length() > 0)
-                        .map(settings -> new ScriptInfo(SETTING_INDEX_DYNARANK_SCRIPT.get(settings),
-                                SETTING_INDEX_DYNARANK_LANG.get(settings), SETTING_INDEX_DYNARANK_TYPE.get(settings),
-                                SETTING_INDEX_DYNARANK_PARAMS.get(settings), SETTING_INDEX_DYNARANK_REORDER_SIZE.get(settings), SETTING_INDEX_DYNARANK_KEEP_TOPN.get(settings)))
+                final ScriptInfo[] scriptInfos = indexAbstraction.getIndices().stream()
+                        .map(metaData::index)
+                        .filter(idx -> SETTING_INDEX_DYNARANK_LANG.get(idx.getSettings()).length() > 0)
+                        .map(idx ->
+                            new ScriptInfo(SETTING_INDEX_DYNARANK_SCRIPT.get(idx.getSettings()), SETTING_INDEX_DYNARANK_LANG.get(idx.getSettings()),
+                                    SETTING_INDEX_DYNARANK_TYPE.get(idx.getSettings()), SETTING_INDEX_DYNARANK_PARAMS.get(idx.getSettings()),
+                                    SETTING_INDEX_DYNARANK_REORDER_SIZE.get(idx.getSettings()), SETTING_INDEX_DYNARANK_KEEP_TOPN.get(idx.getSettings()),
+                                    idx.mapping())
+                        )
                         .toArray(n -> new ScriptInfo[n]);
 
                 if (scriptInfos.length == 0) {
@@ -337,7 +343,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                     final Suggest suggest = in.readBoolean() ? new Suggest(in) : null;
                     final boolean timedOut = in.readBoolean();
                     final Boolean terminatedEarly = in.readOptionalBoolean();
-                    final SearchProfileShardResults profileResults = in.readOptionalWriteable(SearchProfileShardResults::new);
+                    final SearchProfileResults profileResults = in.readOptionalWriteable(SearchProfileResults::new);
                     final int numReducePhases =  in.readVInt();
 
                     final SearchResponseSections internalResponse = new InternalSearchResponse(newHits, aggregations, suggest,
@@ -490,7 +496,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
             // nothing
         }
 
-        ScriptInfo(final String script, final String lang, final String scriptType, final Settings settings, final int reorderSize,final int keepTopN) {
+        ScriptInfo(final String script, final String lang, final String scriptType, final Settings settings, final int reorderSize, final int keepTopN, final MappingMetadata mappingMetadata) {
             this.script = script;
             this.lang = lang;
             this.reorderSize = reorderSize;
@@ -500,6 +506,7 @@ public class DynamicRanker extends AbstractLifecycleComponent {
                 final List<String> list = settings.getAsList(name);
                 this.settings.put(name, list.toArray(new String[list.size()]));
             }
+            this.settings.put("source_as_map", mappingMetadata.getSourceAsMap());
             if ("STORED".equalsIgnoreCase(scriptType)) {
                 this.scriptType = ScriptType.STORED;
             } else {
@@ -577,7 +584,8 @@ public class DynamicRanker extends AbstractLifecycleComponent {
 
                     final ScriptInfo scriptInfo = new ScriptInfo(script, SETTING_INDEX_DYNARANK_LANG.get(indexSettings),
                             SETTING_INDEX_DYNARANK_TYPE.get(indexSettings), SETTING_INDEX_DYNARANK_PARAMS.get(indexSettings),
-                            SETTING_INDEX_DYNARANK_REORDER_SIZE.get(indexSettings),   SETTING_INDEX_DYNARANK_KEEP_TOPN.get(indexSettings));
+                            SETTING_INDEX_DYNARANK_REORDER_SIZE.get(indexSettings),   SETTING_INDEX_DYNARANK_KEEP_TOPN.get(indexSettings),
+                            indexMD.mapping());
                     if (logger.isDebugEnabled()) {
                         logger.debug("Reload cache for {} => {}", index, scriptInfo);
                     }

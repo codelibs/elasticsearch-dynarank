@@ -1,6 +1,7 @@
 package org.codelibs.elasticsearch.dynarank.script.bucket.impl;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -46,10 +47,15 @@ public class StandardBuckets implements Buckets {
         if (thresholds == null) {
             throw new ElasticsearchException("diversity_thresholds is null.");
         }
+        final Object sourceAsMap = params.get("source_as_map");
         final float[] diversityThresholds = parseFloats(thresholds);
         final Object[][] ignoredObjGroups = new Object[diversityFields.length][];
+        final String[] minhashFields = new String[diversityFields.length];
         for (int i = 0; i < diversityFields.length; i++) {
             ignoredObjGroups[i] = (String[]) params.get(diversityFields[i] + "_ignored_objects");
+            if (isMinhashFields(sourceAsMap, diversityFields[i])) {
+                minhashFields[i] = diversityFields[i];
+            }
         }
 
         if (logger.isDebugEnabled()) {
@@ -59,6 +65,7 @@ public class StandardBuckets implements Buckets {
         int minNumOfBuckets = Integer.MAX_VALUE;
         for (int i = diversityFields.length - 1; i >= 0; i--) {
             final String diversityField = diversityFields[i];
+            final boolean isMinhash = Arrays.asList(minhashFields).contains(diversityField);
             final float diversityThreshold = diversityThresholds[i];
             final Object[] ignoredObjs = ignoredObjGroups[i];
             final List<Bucket> bucketList = new ArrayList<>();
@@ -75,7 +82,7 @@ public class StandardBuckets implements Buckets {
                 if (ignoredObjs != null) {
                     for (final Object ignoredObj : ignoredObjs) {
                         if (ignoredObj.equals(value)) {
-                            bucketList.add(bucketFactory.createBucket(hit, value, diversityThreshold));
+                            bucketList.add(bucketFactory.createBucket(hit, value, diversityThreshold, isMinhash));
                             insert = true;
                             break;
                         }
@@ -90,7 +97,7 @@ public class StandardBuckets implements Buckets {
                         }
                     }
                     if (!insert) {
-                        bucketList.add(bucketFactory.createBucket(hit, value, diversityThreshold));
+                        bucketList.add(bucketFactory.createBucket(hit, value, diversityThreshold, isMinhash));
                     }
                 }
             }
@@ -226,4 +233,18 @@ public class StandardBuckets implements Buckets {
         return newSearchHits;
     }
 
+    @SuppressWarnings("unchecked")
+    private boolean isMinhashFields(Object sourceAsMap, String field) {
+        if (sourceAsMap instanceof Map) {
+            Object propertiesMap = ((Map<String, Object>) sourceAsMap).get("properties");
+            if (propertiesMap instanceof Map) {
+                Object fieldMap = ((Map<String, Object>) propertiesMap).get(field);
+                if (fieldMap instanceof Map) {
+                    Object fieldType = ((Map<String, Object>) fieldMap).get("type");
+                    return fieldType != null && fieldType.toString().equals("minhash");
+                }
+            }
+        }
+        return false;
+    }
 }
