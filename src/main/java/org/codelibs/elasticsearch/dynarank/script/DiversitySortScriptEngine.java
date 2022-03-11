@@ -13,6 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.codelibs.elasticsearch.dynarank.script.bucket.BucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.Buckets;
+import org.codelibs.elasticsearch.dynarank.script.bucket.impl.MinhashBucketFactory;
 import org.codelibs.elasticsearch.dynarank.script.bucket.impl.StandardBucketFactory;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.common.settings.Setting;
@@ -29,6 +30,8 @@ public class DiversitySortScriptEngine implements ScriptEngine {
 
     private static final String STANDARD = "standard";
 
+    private static final String MINHASH = "minhash";
+
     public static final Setting<Settings> SETTING_SCRIPT_DYNARANK_BUCKET =
             Setting.groupSetting("script.dynarank.bucket.", Property.NodeScope);
 
@@ -40,6 +43,7 @@ public class DiversitySortScriptEngine implements ScriptEngine {
 
         bucketFactories = new HashMap<>();
         bucketFactories.put(STANDARD, new StandardBucketFactory(settings));
+        bucketFactories.put(MINHASH, new MinhashBucketFactory(settings));
 
         for (final String name : bucketSettings.names()) {
             try {
@@ -91,9 +95,9 @@ public class DiversitySortScriptEngine implements ScriptEngine {
             if (logger.isDebugEnabled()) {
                 logger.debug("Starting DiversitySortScript...");
             }
-            Object bucketFactoryName = params.get("bucket_factory");
-            if (bucketFactoryName == null) {
-                bucketFactoryName = STANDARD;
+            Object bucketFactoryName = STANDARD;
+            if (params.get("bucket_factory") != null) {
+                bucketFactoryName = ((String[]) params.get("bucket_factory"))[0];
             }
             final BucketFactory bucketFactory = bucketFactories.get(bucketFactoryName);
             if (bucketFactory == null) {

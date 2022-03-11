@@ -1,22 +1,25 @@
 package org.codelibs.elasticsearch.dynarank.script.bucket.impl;
 
-import java.util.LinkedList;
-import java.util.Queue;
-
 import org.codelibs.elasticsearch.dynarank.script.bucket.Bucket;
 import org.codelibs.minhash.MinHash;
 import org.elasticsearch.search.SearchHit;
 
-public class StandardBucket implements Bucket {
+import java.util.LinkedList;
+import java.util.Queue;
+
+public class MinhashBucket implements Bucket {
     protected Queue<SearchHit> queue = new LinkedList<>();
 
     protected Object hash;
 
     private final float threshold;
 
-    public StandardBucket(final SearchHit hit, final Object hash, final float threshold) {
+    private final boolean isMinhash;
+
+    public MinhashBucket(final SearchHit hit, final Object hash, final float threshold, final boolean isMinhash) {
         this.hash = hash;
         this.threshold = threshold;
+        this.isMinhash = isMinhash;
         queue.add(hit);
     }
 
@@ -45,6 +48,9 @@ public class StandardBucket implements Bucket {
         }
 
         if (value instanceof String) {
+            if (isMinhash) {
+                return MinHash.compare(hash.toString(), value.toString()) >= threshold;
+            }
             return value.toString().equals(hash);
         } else if (value instanceof Number) {
             return Math.abs(((Number) value).doubleValue() - ((Number) hash).doubleValue()) < threshold;
@@ -67,6 +73,6 @@ public class StandardBucket implements Bucket {
 
     @Override
     public String toString() {
-        return "StandardBucket [queue=" + queue + ", hash=" + hash + ", threshold=" + threshold + "]";
+        return "MinhashBucket [queue=" + queue + ", hash=" + hash + ", threshold=" + threshold + ", isMinhash=" + isMinhash + "]";
     }
 }

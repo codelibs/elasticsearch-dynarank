@@ -333,6 +333,106 @@ public class DynamicRankingPluginTest {
     }
 
     @Test
+    public void standardBucketFactory() throws Exception {
+
+        final String index = "test_index";
+        final String type = "_doc";
+
+        {
+            // create an index
+            final String indexSettings = "{\"index\":{"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"category\"],\"diversity_thresholds\":[0.95,1],\"reorder_size\":20}}}}"
+                    + "}";
+            runner.createIndex(index, Settings.builder().loadFromSource(indexSettings, XContentType.JSON).build());
+            runner.ensureYellow(index);
+
+            // create a mapping
+            final XContentBuilder mappingBuilder = XContentFactory.jsonBuilder()//
+                    .startObject()//
+                    .startObject(type)//
+                    .startObject("properties")//
+
+                    // id
+                    .startObject("id")//
+                    .field("type", "keyword")//
+                    .endObject()//
+
+                    // msg
+                    .startObject("msg")//
+                    .field("type", "text")//
+                    .endObject()//
+
+                    // category
+                    .startObject("category")//
+                    .field("type", "keyword")//
+                    .endObject()//
+
+                    // order
+                    .startObject("order")//
+                    .field("type", "long")//
+                    .endObject()//
+
+                    .endObject()//
+                    .endObject()//
+                    .endObject();
+            runner.createMapping(index, mappingBuilder);
+        }
+
+        if (!runner.indexExists(index)) {
+            fail();
+        }
+
+        insertTestData(index, 1, "aaa bbb ccc", "cat1");
+        insertTestData(index, 2, "aaa bbb ccc", "cat1");
+        insertTestData(index, 3, "aaa bbb ccc", "cat2");
+        insertTestData(index, 4, "aaa bbb ddd", "cat1");
+        insertTestData(index, 5, "aaa bbb ddd", "cat2");
+        insertTestData(index, 6, "aaa bbb ddd", "cat2");
+        insertTestData(index, 7, "aaa bbb eee", "cat1");
+        insertTestData(index, 8, "aaa bbb eee", "cat1");
+        insertTestData(index, 9, "aaa bbb eee", "cat2");
+        insertTestData(index, 10, "aaa bbb fff", "cat1");
+
+        {
+            final SearchResponse response = runner.client().prepareSearch(index).setQuery(QueryBuilders.matchAllQuery())
+                    .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).storedFields("_source", "category")
+                    .setFrom(0).setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(10, searchHits.getTotalHits().value);
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("1", hits[0].getSourceAsMap().get("id"));
+            assertEquals("3", hits[1].getSourceAsMap().get("id"));
+            assertEquals("2", hits[2].getSourceAsMap().get("id"));
+            assertEquals("5", hits[3].getSourceAsMap().get("id"));
+            assertEquals("4", hits[4].getSourceAsMap().get("id"));
+            assertEquals("6", hits[5].getSourceAsMap().get("id"));
+            assertEquals("7", hits[6].getSourceAsMap().get("id"));
+            assertEquals("9", hits[7].getSourceAsMap().get("id"));
+            assertEquals("8", hits[8].getSourceAsMap().get("id"));
+            assertEquals("10", hits[9].getSourceAsMap().get("id"));
+        }
+
+        // disable rerank
+        {
+            final SearchResponse response = runner.client().prepareSearch("_all").setQuery(QueryBuilders.matchAllQuery())
+                    .addSort(SortBuilders.fieldSort("order").order(SortOrder.ASC)).setFrom(0).setSize(10).execute().actionGet();
+            final SearchHits searchHits = response.getHits();
+            assertEquals(10, searchHits.getTotalHits().value);
+            final SearchHit[] hits = searchHits.getHits();
+            assertEquals("1", hits[0].getSourceAsMap().get("id"));
+            assertEquals("2", hits[1].getSourceAsMap().get("id"));
+            assertEquals("3", hits[2].getSourceAsMap().get("id"));
+            assertEquals("4", hits[3].getSourceAsMap().get("id"));
+            assertEquals("5", hits[4].getSourceAsMap().get("id"));
+            assertEquals("6", hits[5].getSourceAsMap().get("id"));
+            assertEquals("7", hits[6].getSourceAsMap().get("id"));
+            assertEquals("8", hits[7].getSourceAsMap().get("id"));
+            assertEquals("9", hits[8].getSourceAsMap().get("id"));
+            assertEquals("10", hits[9].getSourceAsMap().get("id"));
+        }
+    }
+
+    @Test
     public void diversityMultiSort() throws Exception {
 
         final String index = "test_index";
@@ -343,7 +443,7 @@ public class DynamicRankingPluginTest {
             final String indexSettings = "{\"index\":{\"analysis\":{\"analyzer\":{"
                     + "\"minhash_analyzer\":{\"type\":\"custom\",\"tokenizer\":\"standard\",\"filter\":[\"my_minhash\"]}" + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}" + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1]}},\"reorder_size\":20}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"bucket_factory\":\"minhash\",\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1]}},\"reorder_size\":20}"
                     + "}";
             runner.createIndex(index, Settings.builder().loadFromSource(indexSettings, XContentType.JSON).build());
             runner.ensureYellow(index);
@@ -461,7 +561,7 @@ public class DynamicRankingPluginTest {
             final String indexSettings = "{\"index\":{\"analysis\":{\"analyzer\":{"
                     + "\"minhash_analyzer\":{\"type\":\"custom\",\"tokenizer\":\"standard\",\"filter\":[\"my_minhash\"]}" + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}" + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95]}},\"reorder_size\":20}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"bucket_factory\":\"minhash\",\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95]}},\"reorder_size\":20}"
                     + "}";
             runner.createIndex(index, Settings.builder().loadFromSource(indexSettings, XContentType.JSON).build());
             runner.ensureYellow(index);
@@ -673,7 +773,7 @@ public class DynamicRankingPluginTest {
             final String indexSettings = "{\"index\":{\"analysis\":{\"analyzer\":{"
                     + "\"minhash_analyzer\":{\"type\":\"custom\",\"tokenizer\":\"standard\",\"filter\":[\"my_minhash\"]}" + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}" + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\""
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"bucket_factory\":\"minhash\",\"diversity_fields\":[\"minhash_value\"],\"diversity_thresholds\":[0.95],\""
                     + name + "\":\"1\",\"shuffle_seed\":\"1\"}},\"reorder_size\":10}" + "}";
             runner.createIndex(index, Settings.builder().loadFromSource(indexSettings, XContentType.JSON).build());
             runner.ensureYellow(index);
@@ -865,7 +965,7 @@ public class DynamicRankingPluginTest {
             final String indexSettings = "{\"index\":{\"analysis\":{\"analyzer\":{"
                     + "\"minhash_analyzer\":{\"type\":\"custom\",\"tokenizer\":\"standard\",\"filter\":[\"my_minhash\"]}" + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}" + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1],\"category_ignored_objects\":[\"category1\"]}},\"reorder_size\":20}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"bucket_factory\":\"minhash\",\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1],\"category_ignored_objects\":[\"category1\"]}},\"reorder_size\":20}"
                     + "}";
             runner.createIndex(index, Settings.builder().loadFromSource(indexSettings, XContentType.JSON).build());
             runner.ensureYellow(index);
@@ -957,7 +1057,7 @@ public class DynamicRankingPluginTest {
                     + "},\"filter\":{"
                     + "\"my_minhash\":{\"type\":\"minhash\",\"seed\":1000}"
                     + "}}},"
-                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1],\"category_ignored_objects\":[\"category1\"]}},\"reorder_size\":20,\"keep_topn\":5}"
+                    + "\"dynarank\":{\"script_sort\":{\"lang\":\"dynarank_diversity_sort\",\"params\":{\"bucket_factory\":\"minhash\",\"diversity_fields\":[\"minhash_value\",\"category\"],\"diversity_thresholds\":[0.95,1],\"category_ignored_objects\":[\"category1\"]}},\"reorder_size\":20,\"keep_topn\":5}"
                     + "}";
             runner.createIndex(index, Settings.builder()
                     .loadFromSource(indexSettings, XContentType.JSON).build());
