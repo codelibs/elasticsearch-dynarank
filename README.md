@@ -21,7 +21,7 @@ Please file an [issue](https://github.com/codelibs/elasticsearch-dynarank/issues
 
 ## Installation
 
-    $ $ES_HOME/bin/elasticsearch-plugin install org.codelibs:elasticsearch-dynarank:7.6.0
+    $ $ES_HOME/bin/elasticsearch-plugin install org.codelibs:elasticsearch-dynarank:7.16.0
 
 ## Getting Started
 
@@ -100,6 +100,7 @@ The configuration is below:
           "script_sort":{
             "lang":"dynarank_diversity_sort",
             "params":{
+              "bucket_factory": "standard",
               "diversity_fields":["filedname1", "filedname2"],
               "diversity_thresholds":[0.95, 1]
             }
@@ -109,5 +110,6 @@ The configuration is below:
       }
     }'
 
-diversity\_fields is fields for a diversity.
+bucket\_factory is bucket type. use minhash type field for sort, specify "minhash".(default: standard)  
+diversity\_fields is fields for a diversity.  
 diversity\_thresholds is a threshold for a similarity of each document.
